@@ -513,6 +513,7 @@ pub(crate) enum XError { }
 pub struct AlgoXStats {
     calls: usize,
     cover: usize,
+    col_seek: usize,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -594,6 +595,7 @@ where
         let mut col_heads = dlx.walk_from(dlx.head());
         let mut min = !0;
         while let Some(index) = col_heads.next(dlx, Next) {
+            stat!(config, col_seek, += 1);
             let count = dlx.get_value(index);
             if count < min {
                 min = count;
