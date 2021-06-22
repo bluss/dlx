@@ -496,14 +496,14 @@ impl Dlx {
 
         let mut visible_rows = vec![None; self.nrows() as usize];
 
-        let mut headings = self.walk_from(0);
+        let mut headings = self.walk_from(self.head());
         let mut ncols = 0;
         eprint!("Head  ");
         while let Some(col_head) = headings.next(self, Next) {
             eprint!("{:4} ", self.nodes[col_head].value.value());
 
-            let mut col_iter = self.walk_from(col_head);
-            while let Some(r) = col_iter.next(self, Down) {
+            let mut col_items = self.walk_from(col_head);
+            while let Some(r) = col_items.next(self, Down) {
                 let ri = self.row_index_of(r);
                 visible_rows[ri].get_or_insert(r);
             }
@@ -519,8 +519,8 @@ impl Dlx {
         for row_head in visible_rows.iter().filter_map(|x| x.as_ref().copied()) {
             let index = self.row_index_of(row_head);
             eprint!("Row({}) {:3}, ", index, self.nodes[row_head].value.value());
-            let mut col = self.walk_from(row_head);
-            while let Some(block) = col.next(self, Next) {
+            let mut row_items = self.walk_from(row_head);
+            while let Some(block) = row_items.next(self, Next) {
                 let col_head = self.nodes[block].value.value();
                 eprint!("{:3}, ", col_head);
             }
@@ -688,8 +688,8 @@ where
     // 2. Pick the least populated column
     let mut col_index = 0;
     {
-        let mut col_heads = dlx.walk_from(dlx.head());
         let mut min = !0;
+        let mut col_heads = dlx.walk_from(dlx.head());
         while let Some(index) = col_heads.next(dlx, Next) {
             stat!(config.col_seek += 1);
             let count = dlx.get_value(index);
@@ -715,8 +715,8 @@ where
     stat!(config.cover += 1);
 
     // now cover other columns sharing a one with this one
-    let mut col_iter = dlx.walk_from(col_index);
-    while let Some(col_i) = col_iter.next(dlx, Down) {
+    let mut col_items = dlx.walk_from(col_index);
+    while let Some(col_i) = col_items.next(dlx, Down) {
 
         // 4. Include row r in the partial solution
         partial_solution.push(col_i);
