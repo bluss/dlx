@@ -699,8 +699,8 @@ where
             stat!(config.backtracks += 1);
             return Ok(());
         }
+        trace!("Selected col_index = {} with population = {}", col_index, min);
     }
-    trace!("Selected col_index = {}", col_index);
 
     // 3. Explore the rows in the chosen column
 
