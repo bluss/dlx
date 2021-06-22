@@ -512,9 +512,9 @@ pub(crate) enum XError { }
 
 #[derive(Clone, Debug, Default)]
 pub struct AlgoXStats {
-    calls: usize,
-    cover: usize,
-    col_seek: usize,
+    calls: u32,
+    cover: u32,
+    col_seek: u32,
 }
 
 #[derive(Clone, Debug, Default)]
