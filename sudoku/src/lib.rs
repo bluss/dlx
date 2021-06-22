@@ -8,6 +8,14 @@ use std::fmt;
 #[derive(Clone, Debug)]
 struct SudokuInput(Vec<Option<UInt>>);
 
+impl SudokuInput {
+    fn to_sudoku(&self) -> Sudoku {
+        Sudoku {
+            values: self.0.iter().map(|x| x.unwrap_or(0)).collect(),
+        }
+    }
+}
+
 fn sudoku_size_for_len(len: usize) -> Option<UInt> {
     match len {
         4 => Some(2),
@@ -165,6 +173,16 @@ struct SudokuProblem {
     subset_names: Vec<String>,
 }
 
+impl SudokuProblem {
+    fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
+        let mut solution_data = solution.iter().map(|&i| self.subset_data[i as usize]).collect::<Vec<_>>();
+        solution_data.sort_by_key(|d| (d[1], d[0]));
+        Sudoku {
+            values: solution_data.iter().map(|d| d[2] + 1).collect(),
+        }
+    }
+}
+
 fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
     let n = sudoku.sudoku_size() as usize;
     let nu = sudoku.sudoku_size() as UInt;
@@ -250,11 +268,11 @@ fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
     }
 }
 
-struct SudokuFmt {
+struct Sudoku {
     values: Vec<UInt>,
 }
 
-impl fmt::Display for SudokuFmt {
+impl fmt::Display for Sudoku {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let nu = sudoku_size_for_len(self.values.len()).unwrap();
         let empty_str = ".";
@@ -380,7 +398,7 @@ mod tests {
     }
 
     #[test]
-    fn test_problem2() {
+    fn test_4x4_problem2() {
         let v = parse("
             1 4 2 .
             2 3 1 4
@@ -391,19 +409,38 @@ mod tests {
         let mut p = create_problem(&v);
         println!("{:?}", p);
         let mut solution = None;
+        p.dlx.format();
         algox(&mut p.dlx, |s| solution = Some(s));
         println!("{:?}", solution);
         assert!(solution.is_some());
         if let Some(s) = &mut solution {
-            s.sort();
-            let input = SudokuFmt {
-                values: v.0.iter().map(|x| x.unwrap_or(0)).collect(),
-            };
-            println!("{}", input);
-            let output = SudokuFmt {
-                values: s.iter().map(|&i| p.subset_data[i as usize][2] + 1).collect(),
-            };
-            println!("{}", output);
+            println!("{}", v.to_sudoku());
+            println!("{}", p.to_sudoku(&*s));
+        }
+    }
+
+    #[test]
+    fn test_9x9_easy() {
+        let v = parse("
+         ; . . . ; . 3 . ; . . . ;  
+         ; 7 . 5 ; 9 . . ; . . 2 ;  
+         ; 9 . . ; . . 1 ; . . . ;  
+         ; . 5 1 ; . . . ; . 8 3 ;  
+         ; . . . ; 3 . . ; 5 . . ;  
+         ; 4 8 . ; . . . ; 7 6 . ;  
+         ; . . . ; . . . ; . . 1 ;  
+         ; . . 8 ; . . 2 ; 9 . . ;  
+         ; . . . ; . 9 . ; 6 2 . ;  
+        ").unwrap();
+        let mut p = create_problem(&v);
+        let mut solution = None;
+        p.dlx.format();
+        algox(&mut p.dlx, |s| solution = Some(s));
+        println!("{:?}", solution);
+        assert!(solution.is_some());
+        if let Some(s) = &solution {
+            println!("{}", v.to_sudoku());
+            println!("{}", p.to_sudoku(&*s));
         }
     }
 }
