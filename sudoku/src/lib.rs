@@ -229,6 +229,8 @@ fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
         }
     }
 
+    // TODO: Optimize by removing constraints and subsets which are fixed (only 1 subset fill)
+
     let mut dlx = Dlx::new(nu * nu * 4);
     subsets = dbg!(subsets);
     for subset in subsets {
