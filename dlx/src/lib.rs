@@ -145,7 +145,6 @@ pub struct Dlx {
     /// Doubly linked list in two dimensions: Prev, Next and Up, Down.
     pub(crate) nodes: Vec<Node<Point>>,
     columns: UInt,
-    rows: UInt,
     /// Index with the start of each row (sorted, ascending order);
     /// used for lookup from node index to row index.
     row_table: Vec<Index>,
@@ -214,7 +213,6 @@ impl Dlx {
         let mut dlx = Dlx {
             nodes: Vec::with_capacity(4 * universe as usize),
             columns: universe,
-            rows: 0,
             row_table: Vec::new(),
         };
         dlx.initialize(universe);
@@ -228,7 +226,6 @@ impl Dlx {
         self.nodes.clear();
         self.row_table.clear();
         self.columns = universe;
-        self.rows = 0;
         self.initialize(universe);
     }
 
@@ -361,10 +358,14 @@ impl Dlx {
             node.set(Prev, prev_index);
             node.set(Next, next_index);
         }
-        self.rows += 1;
         self.row_table.push(start_index);
 
         Ok(())
+    }
+
+    /// Get number of rows
+    pub fn nrows(&self) -> usize {
+        self.row_table.len()
     }
 
     #[cfg(test)]
@@ -493,9 +494,9 @@ impl Dlx {
     pub fn format(&self, include_rows: bool) {
         let n_blocks = self.nodes.len().saturating_sub(1 + self.columns as usize);
         eprintln!("Dlx columns={}, rows={}, nodes={} (blocks={})",
-            self.columns, self.rows, self.nodes.len(), n_blocks);
+            self.columns, self.nrows(), self.nodes.len(), n_blocks);
 
-        let mut visible_rows = vec![None; self.rows as usize];
+        let mut visible_rows = vec![None; self.nrows() as usize];
 
         let mut headings = self.walk_from(0);
         let mut ncols = 0;
@@ -914,7 +915,7 @@ mod tests {
         assert!(err.is_err());
         let err = dlx.append_row([1, 3]);
         assert!(err.is_err());
-        assert_eq!(dlx.rows, 1);
+        assert_eq!(dlx.nrows(), 1);
         dlx.assert_links();
         println!("{:#?}", dlx);
         dlx.format(true);
@@ -929,7 +930,6 @@ mod tests {
         let dlx = Dlx {
             nodes: Vec::new(),
             columns: 0,
-            rows: 0,
             row_table: vec![8, 11, 13, 17],
         };
 
