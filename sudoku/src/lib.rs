@@ -170,11 +170,26 @@ impl SudokuProblemDlx {
 
     /// Given a Dlx solution, convert into a solved Sudoku
     pub fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
-        let mut solution_data = solution.iter().map(|&i| self.subset_data[i as usize]).collect::<Vec<_>>();
+        Self::sudoku(&self.subset_data, solution)
+    }
+
+    fn sudoku(subset_data: &[[UInt; 3]], solution: &[u32]) -> Sudoku {
+        let mut solution_data: Vec<_> = solution.iter()
+            .map(move |&i| subset_data[i as usize])
+            .collect();
         solution_data.sort_by_key(|d| (d[0], d[1]));
         Sudoku {
             values: solution_data.iter().map(|d| d[2] + 1).collect(),
         }
+    }
+
+    /// Get all solutions to the sudoku problem
+    ///
+    /// The problem is unmodified after the end of this method, and could be solved
+    /// the same way again.
+    pub fn solve_all(&mut self, mut out: impl FnMut(Sudoku)) {
+        let subset_data = &self.subset_data;
+        algox(&mut self.dlx, |s| out(Self::sudoku(subset_data, &s.get())));
     }
 }
 
@@ -247,8 +262,17 @@ impl SudokuProblem {
     }
 }
 
+/// Displayable version of Sudoku. Can be solved or contain placeholders (as zero).
+#[derive(Clone, Debug, PartialEq)]
 pub struct Sudoku {
     values: Vec<UInt>,
+}
+
+impl Sudoku {
+    /// Get the values (row major order)
+    pub fn values(&self) -> &[UInt] {
+        &self.values
+    }
 }
 
 impl fmt::Display for Sudoku {
