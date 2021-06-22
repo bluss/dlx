@@ -549,7 +549,10 @@ impl Walker {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) enum XError { }
+pub(crate) enum XError {
+    /// Used internall to stop after the first solution (if enabled)
+    RequestedStop
+}
 
 /// Statistics from the execution of algorithm X.
 #[derive(Clone, Debug, Default)]
@@ -574,8 +577,8 @@ pub struct AlgoXStats {
 /// Configuration for algorithm X
 #[derive(Clone, Debug, Default)]
 pub struct AlgoXConfig {
-    // TODO: implement this config switch
-    pub emit_all: bool,
+    /// If true, stop at first solution
+    pub stop_at_first: bool,
     /// If stats are enabled, they are written here if the struct is initialized to Some(_) on entry
     pub stats: Option<AlgoXStats>,
 }
@@ -626,7 +629,7 @@ pub fn algox(dlx: &mut Dlx, out: impl FnMut(AlgoXSolution<'_>)) {
 /// - out: Solution callback, called once for each solution.
 pub fn algox_config(dlx: &mut Dlx, config: &mut AlgoXConfig, mut out: impl FnMut(AlgoXSolution<'_>)) {
     trace!("Algorithm X start");
-    algox_inner(dlx, &mut Vec::new(), config, &mut out).unwrap();
+    let _ = algox_inner(dlx, &mut Vec::new(), config, &mut out);
     if cfg!(feature = "stats_trace") {
         if let Some(stats) = &config.stats {
             eprintln!("{:#?}", stats);
@@ -664,6 +667,7 @@ where
 
     6. Repeat this algorithm recursively on the reduced matrix A.
     */
+    let mut status = Ok(());
     stat!(config.calls += 1);
     if_trace!(dlx.format(false));
 
@@ -676,7 +680,7 @@ where
         trace!("==> Valid solution: {:?}", xsolution.raw);
         stat!(config.solutions += 1);
         out(xsolution);
-        return Ok(());
+        return if config.stop_at_first { Err(XError::RequestedStop) } else { Ok(()) };
     }
 
     // 2. Pick the least populated column
@@ -727,7 +731,7 @@ where
 
         // 6. Repeat this algorithm recursively on the reduced matrix A.
         trace!("Recurse!");
-        algox_inner(dlx, partial_solution, config, out)?;
+        status = algox_inner(dlx, partial_solution, config, out);
 
         let _ = partial_solution.pop();
         trace!("partial_solution {:?}", partial_solution);
@@ -738,9 +742,13 @@ where
                 dlx.uncover(chead);
             }
         }
+
+        if status.is_err() {
+            break;
+        }
     }
     dlx.uncover(col_index);
-    Ok(())
+    status
 }
 
 #[cfg(test)]
@@ -924,5 +932,46 @@ mod tests {
 
         assert_eq!(dlx.solution_to_rows(&[8, 9, 10, 11, 12, 13, 14, 17, 23]),
                    vec![0, 0, 0, 1, 1, 2, 2, 3, 3]);
+    }
+
+    #[test]
+    fn dlx_size3_multi_1() {
+        let mut dlx = Dlx::new(4);
+        dlx.append_row([3]).unwrap();
+        dlx.append_row([1, 2]).unwrap();
+        dlx.append_row([1, 2, 3]).unwrap();
+        dlx.append_row([1, 4]).unwrap();
+        dlx.append_row([1, 2, 4]).unwrap();
+        dlx.append_row([4]).unwrap();
+        let dlx_old = dlx.clone();
+        println!("{:#?}", dlx);
+        dlx.format(true);
+
+        let mut solutions = Vec::new();
+        {
+            algox(&mut dlx, |s| solutions.push(s.get()));
+            println!("{:#?}", dlx);
+            println!("{:?}", solutions);
+            assert_eq!(solutions.len(), 3);
+            assert_eq!(dlx, dlx_old, "Dlx should be restored after run");
+        }
+
+        // now just the first found solution
+        {
+            let first_solution = solutions.remove(0);
+            solutions.clear();
+
+            let mut config = AlgoXConfig {
+                stop_at_first: true,
+                stats: Some(AlgoXStats::default()),
+            };
+            algox_config(&mut dlx, &mut config, |s| solutions.push(s.get()));
+
+            println!("{:#?}", config.stats);
+            println!("{:?}", solutions);
+            assert_eq!(solutions.len(), 1);
+            assert_eq!(dlx, dlx_old, "Dlx should be restored after run");
+            assert_eq!(solutions[0], first_solution);
+        }
     }
 }
