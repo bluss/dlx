@@ -183,7 +183,7 @@ struct SudokuProblem {
 impl SudokuProblem {
     fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
         let mut solution_data = solution.iter().map(|&i| self.subset_data[i as usize]).collect::<Vec<_>>();
-        solution_data.sort_by_key(|d| (d[1], d[0]));
+        solution_data.sort_by_key(|d| (d[0], d[1]));
         Sudoku {
             values: solution_data.iter().map(|d| d[2] + 1).collect(),
         }
@@ -215,7 +215,7 @@ fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
     // mark used
     for x in 0..nu {
         for y in 0..nu {
-            let cell = sudoku[(x + y * nu) as usize];
+            let cell = sudoku[(x * nu + y) as usize];
             if let Some(v) = cell.value {
                 let b = cell.box_of(n as u16);
                 rows_taken[x as usize] |= 1 << v;
@@ -244,7 +244,7 @@ fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
     let cat_offset = nu * nu;
     for x in 0..nu {
         for y in 0..nu {
-            let cell = sudoku[(x + y * nu) as usize];
+            let cell = sudoku[(x * nu + y) as usize];
             let b = cell.box_of(n as u16);
             for z in 0..nu {
                 if cell.value.is_some() && Some(z + 1) != cell.value {
@@ -286,7 +286,7 @@ impl fmt::Display for Sudoku {
 
         for x in 0..nu {
             for y in 0..nu {
-                let value = self.values[(x + y * nu) as usize];
+                let value = self.values[(x * nu + y) as usize];
                 if value == 0 {
                     write!(f, "{} ", empty_str)?;
                 } else {
@@ -422,6 +422,34 @@ mod tests {
         assert!(solution.is_some());
         if let Some(s) = &mut solution {
             println!("{}", v.to_sudoku());
+            println!("{}", p.to_sudoku(&*s));
+            let sol = p.to_sudoku(&*s);
+            assert_eq!(sol.values[..],
+                       [1, 4, 2, 3,
+                        2, 3, 1, 4,
+                        3, 2, 4, 1,
+                        4, 1, 3, 2]);
+        }
+    }
+
+    #[test]
+    fn test_4x4_multi1() {
+        let v = parse("
+            1 . . .
+            2 . . .
+            3 . . 2
+            4 . . 1
+        ").unwrap();
+        println!("{:?}", v);
+        let mut p = create_problem(&v);
+        println!("{:?}", p);
+        let mut solutions = Vec::new();
+        p.dlx.format();
+        algox(&mut p.dlx, |s| solutions.push(s));
+        println!("{:?}", solutions);
+        assert_eq!(solutions.len(), 2);
+        println!("{}", v.to_sudoku());
+        for s in &solutions {
             println!("{}", p.to_sudoku(&*s));
         }
     }
