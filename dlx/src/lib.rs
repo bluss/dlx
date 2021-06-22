@@ -3,7 +3,6 @@
 //! This solver solves the exact cover problem using “algorithm X”, implemented using Dancing Links
 //! (“Dlx”).
 
-use std::cmp::Ordering;
 use std::fmt;
 use std::iter::repeat;
 
@@ -386,19 +385,9 @@ impl Dlx {
 
     /// Get row index for node index
     pub(crate) fn row_index_of(&self, index: Index) -> usize {
-        match self.row_table.binary_search_by(move |&x| {
-            if x <= index {
-                Ordering::Less
-            } else {
-                Ordering::Greater
-            }
-        }) {
-            /* never equal, so never Ok */
-            Ok(pos) | Err(pos) => {
-                debug_assert_ne!(pos, 0, "solution contains index before first row");
-                pos - 1
-            }
-        }
+        let pos = self.row_table.partition_point(move |&x| x <= index);
+        debug_assert_ne!(pos, 0, "solution contains index before first row");
+        pos - 1
     }
 
     /// Return solution as the row indexes (zero-indexed)
