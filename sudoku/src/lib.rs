@@ -1,7 +1,6 @@
 
 use dlx::Dlx;
 use dlx::UInt;
-use dlx::algox;
 
 use std::fmt;
 
@@ -189,7 +188,22 @@ impl SudokuProblemDlx {
     /// the same way again.
     pub fn solve_all(&mut self, mut out: impl FnMut(Sudoku)) {
         let subset_data = &self.subset_data;
-        algox(&mut self.dlx, |s| out(Self::sudoku(subset_data, &s.get())));
+        dlx::algox(&mut self.dlx, |s| out(Self::sudoku(subset_data, &s.get())));
+    }
+
+    /// Get the first found solution to the sudoku problem
+    ///
+    /// This is faster than `solve_all`, also in the case where there only is one solution:
+    /// the extra work in solve all is the part needed to know that the solution is unique,
+    /// in that case. This method can not say if the solution is unique or not.
+    ///
+    /// The problem is unmodified after the end of this method, and could be solved
+    /// the same way again.
+    pub fn solve_first(&mut self, mut out: impl FnMut(Sudoku)) {
+        let subset_data = &self.subset_data;
+        let mut config = dlx::AlgoXConfig::default();
+        config.stop_at_first = true;
+        dlx::algox_config(&mut self.dlx, &mut config, |s| out(Self::sudoku(subset_data, &s.get())));
     }
 }
 
@@ -299,6 +313,7 @@ impl fmt::Display for Sudoku {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dlx::algox;
 
     #[test]
     fn test_parse() {
@@ -376,9 +391,14 @@ mod tests {
     }
 
     macro_rules! test_solve {
-        ($input:expr, $($answer:expr),*) => {
+        (all $input:expr, $($answer:expr),*) => {
             {
-                test_solve($input, &[ $( parse($answer).unwrap().to_sudoku() ),* ]);
+                test_solve($input, &[ $( parse($answer).unwrap().to_sudoku() ),* ], false);
+            }
+        };
+        (one $input:expr, $answer:expr) => {
+            {
+                test_solve($input, &[ parse($answer).unwrap().to_sudoku() ], true);
             }
         }
     }
@@ -409,6 +429,7 @@ mod tests {
     #[test]
     fn test_4x4_multi2() {
         test_solve! {
+            all
             "
             1 2 . . 
             3 4 1 2
@@ -437,11 +458,15 @@ mod tests {
         }
     }
 
-    fn test_solve(input: &str, solution_answers: &[Sudoku]) {
+    fn test_solve(input: &str, solution_answers: &[Sudoku], only_first: bool) {
         let s_input = parse(input).unwrap();
         let mut problem = create_problem(&s_input).into_dlx();
         let mut solutions = Vec::new();
-        problem.solve_all(|s| solutions.push(s));
+        if only_first {
+            problem.solve_first(|s| solutions.push(s));
+        } else {
+            problem.solve_all(|s| solutions.push(s));
+        }
         println!("{}", s_input.to_sudoku());
         for soln in &solutions {
             println!("{}", soln);
@@ -453,7 +478,7 @@ mod tests {
 
     #[test]
     fn test_9x9_1() {
-        test_solve! {
+        test_solve! { all
 "
  +-------+-------+-------+  
  | . . . | . 3 . | . . . |  
@@ -487,8 +512,10 @@ mod tests {
     fn test_9x9_2() {
         // http://sw-amt.ws/sudoku/doc/_build/html/worlds-hardest-sudoku.html
         // This one requires 10200 cover-uncover operations and 2600 recursions to solve
-        // in DLX.
+        // in DLX ("all solutions", checking it's unique).
+        // To just get the first, it's 5460 cover-uncover with 1400 recursions.
         test_solve! {
+one
 "
  +-------+-------+-------+ 
  | 8 . .   . . .   . . . |
