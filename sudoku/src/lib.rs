@@ -6,10 +6,10 @@ use dlx::algox;
 use std::fmt;
 
 #[derive(Clone, Debug)]
-struct SudokuInput(Vec<Option<UInt>>);
+pub struct SudokuInput(Vec<Option<UInt>>);
 
 impl SudokuInput {
-    fn to_sudoku(&self) -> Sudoku {
+    pub fn to_sudoku(&self) -> Sudoku {
         Sudoku {
             values: self.0.iter().map(|x| x.unwrap_or(0)).collect(),
         }
@@ -52,7 +52,7 @@ impl Point {
 }
 
 #[derive(Debug)]
-struct ParseError(&'static str);
+pub struct ParseError(&'static str);
 
 // is blank for sudoku
 fn is_blank(s: &str) -> bool {
@@ -69,7 +69,7 @@ fn is_spacer(s: &str) -> bool {
     }
 }
 
-fn parse(s: &str) -> Result<SudokuInput, ParseError> {
+pub fn parse(s: &str) -> Result<SudokuInput, ParseError> {
     let parts: Vec<Option<UInt>> = s.split(char::is_whitespace)
         .filter(|s| !is_spacer(*s) && (s.len() <= 1 || !s.split("").all(is_spacer)))
         .map(|s| if is_blank(s) { Ok(None) } else { Some(s.parse::<UInt>()).transpose() })
@@ -145,7 +145,7 @@ fn box_of(sudoku_size: u16, x: UInt, y: UInt) -> UInt {
 }
 
 #[derive(Clone, Debug)]
-struct SudokuProblem {
+pub struct SudokuProblem {
     sudoku_size: UInt,
     subsets: Vec<Vec<UInt>>,
     /// Subset data: RxCy#z: Row x, Col y filled with z.
@@ -154,14 +154,14 @@ struct SudokuProblem {
 }
 
 #[derive(Clone, Debug)]
-struct SudokuProblemDlx {
+pub struct SudokuProblemDlx {
     dlx: Dlx,
     /// Subset data: RxCy#z: Row x, Col y filled with z.
     subset_data: Vec<[UInt; 3]>,
 }
 
 impl SudokuProblem {
-    fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
+    pub fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
         let mut solution_data = solution.iter().map(|&i| self.subset_data[i as usize]).collect::<Vec<_>>();
         solution_data.sort_by_key(|d| (d[0], d[1]));
         Sudoku {
@@ -171,7 +171,7 @@ impl SudokuProblem {
 }
 
 impl SudokuProblemDlx {
-    fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
+    pub fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
         let mut solution_data = solution.iter().map(|&i| self.subset_data[i as usize]).collect::<Vec<_>>();
         solution_data.sort_by_key(|d| (d[0], d[1]));
         Sudoku {
@@ -180,7 +180,7 @@ impl SudokuProblemDlx {
     }
 }
 
-fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
+pub fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
     let n = sudoku.sudoku_size() as usize;
     let nu = sudoku.sudoku_size() as UInt;
     let mut subsets = Vec::<Vec<UInt>>::new();
@@ -231,11 +231,11 @@ fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
 }
 
 impl SudokuProblem {
-    fn optimize(mut self) -> Self {
-        self
+    pub fn optimize(self) -> Self {
+        todo!()
     }
 
-    fn into_dlx(self) -> SudokuProblemDlx {
+    pub fn into_dlx(self) -> SudokuProblemDlx {
         let nu = self.sudoku_size;
         let mut dlx = Dlx::new(self.columns);
         for subset in self.subsets {
@@ -250,7 +250,7 @@ impl SudokuProblem {
     }
 }
 
-struct Sudoku {
+pub struct Sudoku {
     values: Vec<UInt>,
 }
 
