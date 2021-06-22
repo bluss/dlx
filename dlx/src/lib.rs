@@ -424,7 +424,7 @@ impl Dlx {
                 self.modify_col_head_of(row_i_j, -1);
             }
         }
-        if_trace!(self.format());
+        //if_trace!(self.format());
     }
 
     /// Uncover column c
@@ -474,6 +474,7 @@ impl Dlx {
             }
         }
         eprintln!();
+        return;
 
         for row_head in visible_rows.iter().filter_map(|x| x.as_ref().copied()) {
             let index = self.row_index_of(row_head);
