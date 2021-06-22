@@ -540,28 +540,36 @@ impl Walker {
 #[derive(Clone, Debug)]
 pub(crate) enum XError { }
 
+/// Statistics from the execution of algorithm X.
 #[derive(Clone, Debug, Default)]
 pub struct AlgoXStats {
+    /// Number of (recursive) calls
     #[cfg(feature = "stats")]
-    calls: u32,
+    pub calls: u32,
+    /// Number of cover-uncover operations
     #[cfg(feature = "stats")]
-    cover: u32,
+    pub cover: u32,
+    /// Number of column list walks
     #[cfg(feature = "stats")]
-    col_seek: u32,
+    pub col_seek: u32,
+    /// Number of backtracks from dead ends
     #[cfg(feature = "stats")]
-    backtracks: u32,
+    pub backtracks: u32,
+    /// Number of solutions emitted
     #[cfg(feature = "stats")]
-    solutions: u32,
+    pub solutions: u32,
 }
 
+/// Configuration for algorithm X
 #[derive(Clone, Debug, Default)]
 pub struct AlgoXConfig {
     // TODO: implement this config switch
-    emit_all: bool,
-    stats: Option<AlgoXStats>,
+    pub emit_all: bool,
+    /// If stats are enabled, the are written here if the struct is initialized to Some(_) on entry
+    pub stats: Option<AlgoXStats>,
 }
 
-/// Solution of from algorithm X
+/// A solution from algorithm X
 ///
 /// This solution can be converted (on demand) to the row indices it corresponds to.
 #[derive(Clone, Debug)]
