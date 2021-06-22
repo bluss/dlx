@@ -556,7 +556,7 @@ macro_rules! stat {
     }
 }
 
-fn algox_inner<F>(dlx: &mut Dlx, solution: &mut Vec<usize>, config: &mut AlgoXConfig, out: &mut F)
+fn algox_inner<F>(dlx: &mut Dlx, partial_solution: &mut Vec<usize>, config: &mut AlgoXConfig, out: &mut F)
     -> Result<(), XError>
 where
     F: FnMut(Vec<UInt>)
@@ -577,15 +577,15 @@ where
     6. Repeat this algorithm recursively on the reduced matrix A.
     */
     stat!(config, calls, += 1);
-    trace!("Enter algo X with exploring from solution {:?}", solution);
+    trace!("Enter algo X with exploring from partial_solution {:?}", partial_solution);
     if_trace!(dlx.format());
 
     // 1. is the matrix empty
     let empty = dlx.head_node().get(Next) == dlx.head();
     if empty {
         // We have a solution
-        let sol = dlx.solution_to_rows(solution);
-        trace!("==> Valid solution: {:?} (index {:?})", sol, solution);
+        let sol = dlx.solution_to_rows(partial_solution);
+        trace!("==> Valid solution: {:?} (index {:?})", sol, partial_solution);
         out(sol);
         return Ok(());
     }
@@ -624,8 +624,8 @@ where
     while let Some(col_i) = col_iter.next(dlx, Down) {
 
         // 4. Include row r in the partial solution
-        solution.push(col_i);
-        trace!("solution {:?}", solution);
+        partial_solution.push(col_i);
+        trace!("partial_solution {:?}", partial_solution);
 
         // 5. Cover each column
         let mut row_iter = dlx.walk_from(col_i);
@@ -639,10 +639,10 @@ where
 
         // 6. Repeat this algorithm recursively on the reduced matrix A.
         trace!("Recurse!");
-        algox_inner(dlx, solution, config, out)?;
+        algox_inner(dlx, partial_solution, config, out)?;
 
-        let _ = solution.pop();
-        trace!("solution {:?}", solution);
+        let _ = partial_solution.pop();
+        trace!("partial_solution {:?}", partial_solution);
 
         let mut row_iter = dlx.walk_from(col_i);
         while let Some(row_j) = row_iter.next(dlx, Next.opp()) {
