@@ -167,7 +167,7 @@ fn box_of(sudoku_size: u16, x: UInt, y: UInt) -> UInt {
 #[derive(Clone, Debug)]
 pub struct SudokuProblem {
     sudoku_size: UInt,
-    subsets: Vec<Vec<UInt>>,
+    subsets: Vec<[UInt; 4]>,
     /// Subset data: RxCy#z: Row x, Col y filled with z.
     subset_data: Vec<[UInt; 3]>,
     columns: UInt,
@@ -231,7 +231,7 @@ impl SudokuProblemDlx {
 pub fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
     let n = sudoku.sudoku_size() as usize;
     let nu = sudoku.sudoku_size() as UInt;
-    let mut subsets = Vec::<Vec<UInt>>::new();
+    let mut subsets = Vec::new();
     let mut subset_data = Vec::new();
 
     let sudoku: Vec<_> = sudoku.0.iter().enumerate().map(|(i, &v)| {
@@ -260,7 +260,7 @@ pub fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
                     continue;
                 }
                 subset_data.push([x, y, z]);
-                subsets.push(vec![
+                subsets.push([
                         offset + 0 * cat_offset + x + y * nu,  // RxCy
                         offset + 1 * cat_offset + x + z * nu,  // Rx#z
                         offset + 2 * cat_offset + y + z * nu,  // Cy#z
