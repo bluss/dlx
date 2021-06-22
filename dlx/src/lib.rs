@@ -257,11 +257,12 @@ impl Dlx {
         self.nodes[self.column_head(col)].value.value()
     }
 
+    /// Create a borrowless traversal state that can walk the linked lists.
+    ///
+    /// The walk finishes when the starting point is reached (the starting point is not emitted
+    /// anywhere in the walk).
     pub(crate) fn walk_from(&self, index: Index) -> Walker {
-        Walker {
-            index,
-            start: index,
-        }
+        Walker { index, start: index }
     }
 
     pub(crate) fn get_value(&self, index: Index) -> UInt {
@@ -519,12 +520,15 @@ impl Dlx {
     }
 }
 
-pub struct Walker {
+/// Walker: for borrowless traversal along the linked lists
+struct Walker {
     index: Index,
     start: Index,
 }
 
 impl Walker {
+    /// Take the next step in the walk. The walk finishes when the starting point is reached
+    /// (the starting point is not emitted anywhere in the walk).
     pub(crate) fn next(&mut self, dlx: &Dlx, dir: Direction) -> Option<Index> {
         let next = dlx.nodes[self.index].get(dir);
         self.index = next;
