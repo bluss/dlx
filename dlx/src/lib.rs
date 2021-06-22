@@ -193,12 +193,35 @@ pub enum DlxError {
 impl Dlx {
     /// Create a new Dlx with the universe of points in 1..=universe
     pub fn new(universe: UInt) -> Self {
+        let mut dlx = Dlx {
+            nodes: Vec::with_capacity(4 * universe as usize),
+            columns: universe,
+            rows: 0,
+            row_table: Vec::new(),
+        };
+        dlx.initialize(universe);
+        dlx
+    }
+
+    /// Clear the Dlx
+    ///
+    /// It is reinitialized for use with the universe of points in 1..=universe.
+    pub fn reset(&mut self, universe: UInt) {
+        self.nodes.clear();
+        self.row_table.clear();
+        self.columns = universe;
+        self.rows = 0;
+        self.initialize(universe);
+    }
+
+    fn initialize(&mut self, universe: UInt) {
         // Insert head node and the column row.
-        let mut nodes = vec![Node::new(Point::Head(0))];
+        let nodes = &mut self.nodes;
+        nodes.push(Node::new(Point::Head(0)));
         nodes.extend(repeat(Node::new(Point::Column(0))).take(universe as usize));
 
         // link the whole header row in both dimensions
-        for (index, node) in enumerate(&mut nodes) {
+        for (index, node) in enumerate(&mut *nodes) {
             // self-link in up-down axis
             *node.assign(Up) = index;
             *node.assign(Down) = index;
@@ -209,13 +232,6 @@ impl Dlx {
         let len = nodes.len();
         *nodes[0].assign(Prev) = len - 1;
         *nodes[len - 1].assign(Next) = 0;
-
-        Dlx {
-            nodes,
-            columns: universe,
-            rows: 0,
-            row_table: Vec::new(),
-        }
     }
 
     fn head(&self) -> Index { 0 }
