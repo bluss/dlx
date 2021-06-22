@@ -515,9 +515,16 @@ pub(crate) enum XError { }
 
 #[derive(Clone, Debug, Default)]
 pub struct AlgoXStats {
+    #[cfg(feature = "stats")]
     calls: u32,
+    #[cfg(feature = "stats")]
     cover: u32,
+    #[cfg(feature = "stats")]
     col_seek: u32,
+    #[cfg(feature = "stats")]
+    backtracks: u32,
+    #[cfg(feature = "stats")]
+    solutions: u32,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -589,6 +596,7 @@ where
         // We have a solution
         let sol = dlx.solution_to_rows(partial_solution);
         trace!("==> Valid solution: {:?} (index {:?})", sol, partial_solution);
+        stat!(config, solutions, += 1);
         out(sol);
         return Ok(());
     }
@@ -610,6 +618,7 @@ where
 
         if min == 0 {
             trace!("Column {} unsatsified, backtracking", col_index);
+            stat!(config, backtracks, += 1);
             return Ok(());
         }
     }
