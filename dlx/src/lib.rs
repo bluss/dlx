@@ -303,10 +303,12 @@ impl Dlx {
     ///
     /// The walk finishes when the starting point is reached (the starting point is not emitted
     /// anywhere in the walk).
+    #[inline]
     pub(crate) fn walk_from(&self, index: Index) -> Walker {
         Walker { index, start: index }
     }
 
+    #[inline]
     pub(crate) fn get_value(&self, index: Index) -> UInt {
         self.nodes[index].value.value()
     }
@@ -314,12 +316,14 @@ impl Dlx {
     /// Get the column head for row item `index`
     ///
     /// `index` must be a row item.
+    #[inline]
     pub(crate) fn get_column_head_of(&self, index: Index) -> Index {
         debug_assert!(index > self.columns as Index, "Expected row item index, got {}", index);
         self.get_value(index) as Index
     }
 
     /// Get the mutable value of the row item's column head
+    #[inline]
     pub(crate) fn column_head_value_mut(&mut self, index: Index) -> &mut UInt {
         match self.get_column_head_of(index) {
             chead => self.nodes[chead].value.value_mut()
@@ -418,6 +422,7 @@ impl Dlx {
     }
 
     /// Get row index for node index
+    #[inline]
     pub(crate) fn row_index_of(&self, index: Index) -> usize {
         let pos = self.row_table.partition_point(move |&x| x <= index);
         debug_assert_ne!(pos, 0, "solution contains index before first row");
@@ -566,6 +571,7 @@ struct Walker {
 impl Walker {
     /// Take the next step in the walk. The walk finishes when the starting point is reached
     /// (the starting point is not emitted anywhere in the walk).
+    #[inline]
     pub(crate) fn next(&mut self, dlx: &Dlx, dir: Direction) -> Option<Index> {
         let next = dlx.nodes[self.index].get(dir);
         self.index = next;

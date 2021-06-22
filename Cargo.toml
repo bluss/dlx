@@ -1,2 +1,5 @@
 [workspace]
 members = ["dlx", "sudoku"]
+
+[profile.release]
+debug = true
