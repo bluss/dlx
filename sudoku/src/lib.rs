@@ -160,17 +160,8 @@ pub struct SudokuProblemDlx {
     subset_data: Vec<[UInt; 3]>,
 }
 
-impl SudokuProblem {
-    pub fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
-        let mut solution_data = solution.iter().map(|&i| self.subset_data[i as usize]).collect::<Vec<_>>();
-        solution_data.sort_by_key(|d| (d[0], d[1]));
-        Sudoku {
-            values: solution_data.iter().map(|d| d[2] + 1).collect(),
-        }
-    }
-}
-
 impl SudokuProblemDlx {
+    /// Given a Dlx solution, convert into a solved Sudoku
     pub fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
         let mut solution_data = solution.iter().map(|&i| self.subset_data[i as usize]).collect::<Vec<_>>();
         solution_data.sort_by_key(|d| (d[0], d[1]));
