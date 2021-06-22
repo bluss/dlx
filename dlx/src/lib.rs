@@ -254,8 +254,10 @@ impl Dlx {
         *nodes[len - 1].assign(Next) = 0;
     }
 
+    #[inline]
     fn head(&self) -> Index { 0 }
 
+    #[inline]
     fn head_node(&self) -> &Node<Point> {
         &self.nodes[0]
     }
@@ -399,15 +401,11 @@ impl Dlx {
         // 11, 12 => 1
         // 13 => 2
         // 17, 18 => 3
-        let mut res = Vec::with_capacity(sol.len());
-        for &s in sol {
-            let pos = self.row_index_of(s);
-            res.push(pos as UInt);
-        }
-        res
+        sol.iter().map(|&s| self.row_index_of(s) as UInt).collect()
     }
 
     /// Remove `x` from the list in direction `dir`, where the list is doubly linked.
+    /// (It does not matter if the first or second item of direction axis is passed.)
     ///
     /// x.left.right ← x.right;
     /// x.right.left ← x.left;
@@ -423,18 +421,19 @@ impl Dlx {
     }
 
     /// Restore `x` to the list, reversing a previous removal.
+    /// (It does not matter if the first or second item of direction axis is passed.)
     ///
     /// x.left.right ← x;
     /// x.right.left ← x;
     pub(crate) fn restore(&mut self, index: Index, dir: Direction) {
         let right = dir;
         let left = dir.opp();
-        let x = index;
-        let xr = self.nodes[x].get(right);
-        let xl = self.nodes[x].get(left);
+        let x = &self.nodes[index];
+        let xr = x.get(right);
+        let xl = x.get(left);
 
-        self.nodes[xl].set(right, x);
-        self.nodes[xr].set(left, x);
+        self.nodes[xl].set(right, index);
+        self.nodes[xr].set(left, index);
     }
 
     /// Cover column c
@@ -443,11 +442,11 @@ impl Dlx {
         //
         // start from column head c
         // column head c unlinked in Prev/Next
-        // step Down in rows to i
-        //   Go Next in row and unlink in Up/Down
-        //   (Not unlinking i itself)
-        //   Decrement column's count
-        trace!("cover column {}", c);
+        // step Down to i (loop til c):
+        //   step Next from i to j (loop til i):
+        //      unlink in Up/Down (Not unlinking i itself)
+        //      Decrement j's column's count
+        trace!(">> cover column {}", c);
         debug_assert!(c > 0 && c <= self.columns as _,
                       "Not a column head: {}", c);
 
@@ -469,12 +468,12 @@ impl Dlx {
         // steps taken in the reverse order of cover.
         //
         // start from column head c
-        // step Up in rows to i
-        //   Go Prev in row and unlink in Up/Down
-        //   (Not unlinking i itself)
-        //   Increment column's count
+        // step Up as i (loop til c):
+        //   step Prev from i to j (loop til i):
+        //      restore link in Up/Down (Not i itself)
+        //      Increment j's column's count
         // column head c restored in Prev/Next
-        trace!("uncover column {}", c);
+        trace!("<< uncover column {}", c);
         debug_assert!(c > 0 && c <= self.columns as _,
                       "Not a column head: {}", c);
 
