@@ -193,24 +193,6 @@ fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
         }
     }).collect();
 
-    // bitsets
-    let mut rows_taken = vec![0u64; n];
-    let mut cols_taken = vec![0u64; n];
-    let mut boxes_taken = vec![0u64; n];
-
-    // mark used
-    for x in 0..nu {
-        for y in 0..nu {
-            let cell = sudoku[(x * nu + y) as usize];
-            if let Some(v) = cell.value {
-                let b = cell.box_of(n as u16);
-                rows_taken[x as usize] |= 1 << v;
-                cols_taken[y as usize] |= 1 << v;
-                boxes_taken[b as usize] |= 1 << v;
-            }
-        }
-    }
-
     // create constraints and subsets
     //
     // 1. There is exactly 1 number in cell RxCy
