@@ -144,35 +144,6 @@ fn box_of(sudoku_size: u16, x: UInt, y: UInt) -> UInt {
     xi * sz + yi
 }
 
-fn all_subsets(sudoku_size: u16, start_index: UInt) -> Vec<Vec<UInt>> {
-    let n = sudoku_size as UInt;
-    let mut res = Vec::new();
-
-    // Rx
-    for x in 0..n {
-        // Cy
-        for y in 0..n {
-            let w = box_of(sudoku_size, x, y);
-            // RxCy #z
-            for z in 0..n {
-                // RxCy#z fulfills:
-                // RxCy
-                // Rx#z
-                // Cy#z
-                // Bw#z
-                res.push(vec![
-                    ExactlyOne(x, y).encoding(n),
-                    RowContains(x, z).encoding(n),
-                    ColContains(y, z).encoding(n),
-                    BoxContains(w, z).encoding(n),
-                ]);
-            }
-        }
-    }
-
-    res
-}
-
 #[derive(Clone, Debug)]
 struct SudokuProblem {
     dlx: Dlx,
@@ -295,62 +266,9 @@ impl fmt::Display for Sudoku {
     }
 }
 
-type N = UInt;
-
-use Constraint::*;
-
-#[derive(Debug, Copy, Clone)]
-enum Constraint {
-    ExactlyOne(N, N),
-    RowContains(N, N),
-    ColContains(N, N),
-    BoxContains(N, N),
-}
-
-impl Constraint {
-    fn encoding(&self, size: N) -> UInt {
-        let offset = match *self {
-            ExactlyOne(..) => 0,
-            RowContains(..) => 1,
-            ColContains(..) => 2,
-            BoxContains(..) => 3,
-        };
-        let size = size as UInt;
-        offset * size * size + self.index_of(size) as UInt
-    }
-
-    fn group_size(&self, n: N) -> usize {
-        n as usize * n as usize
-    }
-
-    /// index (inside its own group) of this constraint
-    fn index_of(&self, n: N) -> usize {
-        use Constraint::*;
-
-        match *self {
-            ExactlyOne(x, y) |
-            RowContains(x, y) |
-            ColContains(x, y) |
-            BoxContains(x, y) => (x as usize) * (n as usize) + (y as usize)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-
-    #[test]
-    fn all() {
-        for s in all_subsets(4, 1) {
-            println!("{:?}", s);
-        }
-    }
 
     #[test]
     fn test_parse() {
