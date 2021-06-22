@@ -86,23 +86,17 @@ impl<T> Node<T> {
 // These macros are used trace debug logging
 
 #[cfg(feature="trace")]
-macro_rules! trace {
-    ($($t:tt)*) => { eprintln!($($t)*) }
-}
-
-#[cfg(feature="trace")]
 macro_rules! if_trace {
     ($($t:tt)*) => { $($t)* }
 }
 
 #[cfg(not(feature="trace"))]
-macro_rules! trace {
+macro_rules! if_trace {
     ($($t:tt)*) => { }
 }
 
-#[cfg(not(feature="trace"))]
-macro_rules! if_trace {
-    ($($t:tt)*) => { }
+macro_rules! trace {
+    ($($t:tt)*) => { if_trace!(eprintln!($($t)*)) }
 }
 
 
