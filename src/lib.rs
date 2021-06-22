@@ -336,6 +336,19 @@ impl Dlx {
         Ok(())
     }
 
+    /// Get row index for node index
+    pub(crate) fn row_index_of(&self, index: Index) -> usize {
+        let pos = self.row_table.binary_search_by(move |&x| {
+            if x <= index {
+                Ordering::Less
+            } else {
+                Ordering::Greater
+            }
+        }).unwrap_err(); /* never equal */
+        debug_assert_ne!(pos, 0, "solution contains index before first row");
+        pos - 1
+    }
+
     /// Return solution as the row indexes (zero-indexed)
     pub(crate) fn solution_to_rows(&self, sol: &[Index]) -> Vec<UInt> {
         // Given a table like
@@ -347,15 +360,8 @@ impl Dlx {
         // 17, 18 => 3
         let mut res = Vec::with_capacity(sol.len());
         for &s in sol {
-            let pos = self.row_table.binary_search_by(move |&x| {
-                if x <= s {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                }
-            }).unwrap_err(); /* never equal */
-            debug_assert_ne!(pos, 0, "solution contains index before first row");
-            res.push((pos - 1) as UInt);
+            let pos = self.row_index_of(s);
+            res.push(pos as UInt);
         }
         res
     }
@@ -445,19 +451,24 @@ impl Dlx {
         eprintln!("Dlx columns={}, rows={}, nodes={} (blocks={})",
             self.columns, self.rows, self.nodes.len(), n_blocks);
 
+        let mut visible_rows = vec![None; self.rows as usize];
+
         let mut headings = self.walk_from(0);
         eprint!("Head  ");
         while let Some(col_head) = headings.next(self, Next) {
             eprint!("{:4} ", self.nodes[col_head].value.value());
+
+            let mut col_iter = self.walk_from(col_head);
+            while let Some(r) = col_iter.next(self, Down) {
+                let ri = self.row_index_of(r);
+                visible_rows[ri].get_or_insert(r);
+            }
         }
         eprintln!();
 
-        return;
-
-
-        let mut rows = self.walk_from(0);
-        while let Some(row_head) = rows.next(self, Down) {
-            eprint!("{:?} ", self.nodes[row_head].value);
+        for row_head in visible_rows.iter().filter_map(|x| x.as_ref().copied()) {
+            let index = self.row_index_of(row_head);
+            eprint!("Row({}) {:3}, ", index, self.nodes[row_head].value.value());
             let mut col = self.walk_from(row_head);
             while let Some(block) = col.next(self, Next) {
                 let col_head = self.nodes[block].value.value();
@@ -612,10 +623,11 @@ mod tests {
         dlx.append_row([2]).unwrap();
         dlx.append_row([2, 3]).unwrap();
         println!("{:#?}", dlx);
-        assert_eq!(dlx.column_count(0), 3);
+        assert_eq!(dlx.column_count(0), 0);
         assert_eq!(dlx.column_count(1), 1);
         assert_eq!(dlx.column_count(2), 2);
         assert_eq!(dlx.column_count(3), 2);
+        dlx.format();
     }
 
     #[test]
