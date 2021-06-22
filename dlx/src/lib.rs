@@ -1,11 +1,25 @@
 // from bluss dlx solver
 
+#[cfg(feature="trace")]
 macro_rules! trace {
     ($($t:tt)*) => { eprintln!($($t)*) }
 }
+
+#[cfg(feature="trace")]
 macro_rules! if_trace {
     ($($t:tt)*) => { $($t)* }
 }
+
+#[cfg(not(feature="trace"))]
+macro_rules! trace {
+    ($($t:tt)*) => { }
+}
+
+#[cfg(not(feature="trace"))]
+macro_rules! if_trace {
+    ($($t:tt)*) => { }
+}
+
 
 use std::cmp::Ordering;
 use std::fmt;
