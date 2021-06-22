@@ -461,7 +461,6 @@ impl Dlx {
                 self.modify_col_head_of(row_i_j, -1);
             }
         }
-        //if_trace!(self.format(true));
     }
 
     /// Uncover column c
@@ -500,6 +499,7 @@ impl Dlx {
         let mut visible_rows = vec![None; self.rows as usize];
 
         let mut headings = self.walk_from(0);
+        let mut ncols = 0;
         eprint!("Head  ");
         while let Some(col_head) = headings.next(self, Next) {
             eprint!("{:4} ", self.nodes[col_head].value.value());
@@ -509,10 +509,12 @@ impl Dlx {
                 let ri = self.row_index_of(r);
                 visible_rows[ri].get_or_insert(r);
             }
+            ncols += 1;
         }
+        eprint!("({} columns)", ncols);
         eprintln!();
 
-        if !include_rows {
+        if !include_rows && !cfg!(feature = "trace") {
             return;
         }
 
@@ -665,7 +667,6 @@ where
     6. Repeat this algorithm recursively on the reduced matrix A.
     */
     stat!(config.calls += 1);
-    trace!("Enter algo X with exploring from partial_solution {:?}", partial_solution);
     if_trace!(dlx.format(false));
 
     // 1. is the matrix empty
@@ -701,7 +702,6 @@ where
             return Ok(());
         }
     }
-
     trace!("Selected col_index = {}", col_index);
 
     // 3. Explore the rows in the chosen column
@@ -721,7 +721,6 @@ where
         // 5. Cover each column
         let mut row_iter = dlx.walk_from(col_i);
         while let Some(row_j) = row_iter.next(dlx, Next) {
-            //trace!("walked to col_i={}, row_j={}", col_i, row_j);
             if let Ok(chead) = dlx.col_head_of(row_j) {
                 dlx.cover(chead);
                 stat!(config.cover += 1);
