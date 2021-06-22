@@ -557,7 +557,7 @@ pub fn algox_config(dlx: &mut Dlx, config: &mut AlgoXConfig, mut out: impl FnMut
 }
 
 macro_rules! stat {
-    ($c:expr, $field:ident, $($t:tt)*) => {
+    ($c:ident . $field:ident $($t:tt)*) => {
         if cfg!(feature = "stats") {
             if let Some(ref mut st) = $c.stats {
                 st . $field $($t)*;
@@ -586,7 +586,7 @@ where
 
     6. Repeat this algorithm recursively on the reduced matrix A.
     */
-    stat!(config, calls, += 1);
+    stat!(config.calls += 1);
     trace!("Enter algo X with exploring from partial_solution {:?}", partial_solution);
     if_trace!(dlx.format(false));
 
@@ -596,7 +596,7 @@ where
         // We have a solution
         let sol = dlx.solution_to_rows(partial_solution);
         trace!("==> Valid solution: {:?} (index {:?})", sol, partial_solution);
-        stat!(config, solutions, += 1);
+        stat!(config.solutions += 1);
         out(sol);
         return Ok(());
     }
@@ -607,7 +607,7 @@ where
         let mut col_heads = dlx.walk_from(dlx.head());
         let mut min = !0;
         while let Some(index) = col_heads.next(dlx, Next) {
-            stat!(config, col_seek, += 1);
+            stat!(config.col_seek += 1);
             let count = dlx.get_value(index);
             if count < min {
                 min = count;
@@ -618,7 +618,7 @@ where
 
         if min == 0 {
             trace!("Column {} unsatsified, backtracking", col_index);
-            stat!(config, backtracks, += 1);
+            stat!(config.backtracks += 1);
             return Ok(());
         }
     }
@@ -629,7 +629,7 @@ where
 
     // cover column
     dlx.cover(col_index);
-    stat!(config, cover, += 1);
+    stat!(config.cover += 1);
 
     // now cover other columns sharing a one with this one
     let mut col_iter = dlx.walk_from(col_index);
@@ -645,7 +645,7 @@ where
             //trace!("walked to col_i={}, row_j={}", col_i, row_j);
             if let Ok(chead) = dlx.col_head_of(row_j) {
                 dlx.cover(chead);
-                stat!(config, cover, += 1);
+                stat!(config.cover += 1);
             }
         }
 
