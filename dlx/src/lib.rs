@@ -185,9 +185,15 @@ fn enumerate<T>(it: impl IntoIterator<Item=T>) -> impl Iterator<Item=(usize, T)>
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DlxError {
-    InvalidRow(&'static str),
-    InvalidInput(&'static str),
-    HeadHasNoColumn,
+    InputMustNotBeEmpty,
+    InputOutsideUniverse,
+    InputNotInSortedOrder,
+    InvalidColumnZero,
+}
+
+#[derive(Clone, Debug)]
+enum InternalDlxError {
+    Error(&'static &'static str),
 }
 
 impl Dlx {
@@ -263,10 +269,10 @@ impl Dlx {
     }
 
     /// Get the column head for row item `index`
-    pub(crate) fn col_head_of(&self, index: Index) -> Result<Index, DlxError> {
+    pub(crate) fn col_head_of(&self, index: Index) -> Result<Index, InternalDlxError> {
         let col_head = match self.nodes[index].value {
             Point::Body(c) => self.column_head(c),
-            _otherwise => return Err(DlxError::InvalidRow("Expected body point")),
+            _otherwise => return Err(InternalDlxError::Error(&"Expected body point")),
         };
         Ok(col_head)
     }
@@ -295,6 +301,9 @@ impl Dlx {
     ///
     /// The items of the row use one-based indexing and must be in ascending order;
     /// the items must be in 1..=universe.
+    ///
+    /// Empty rows are not allowed. The universe is allowed to be empty, but don't add any
+    /// rows or “subsets” in that case.
     pub fn append_row(&mut self, row: impl IntoIterator<Item=UInt>) -> Result<(), DlxError> {
         // try creating nodes for all items
         let start_index = self.nodes.len();
@@ -303,14 +312,14 @@ impl Dlx {
             for r in row {
                 if let Some(ms) = max_seen {
                     if ms >= r {
-                        return Err(DlxError::InvalidRow("invalid order"));
+                        return Err(DlxError::InputNotInSortedOrder);
                     }
                 }
                 if r == 0 {
-                    return Err(DlxError::InvalidRow("invalid column zero"));
+                    return Err(DlxError::InvalidColumnZero);
                 }
                 if r > self.columns {
-                    return Err(DlxError::InvalidRow("row larger than column count"));
+                    return Err(DlxError::InputOutsideUniverse);
                 }
                 max_seen = Some(r);
                 let body_node = Node::new(Point::Body(r));
@@ -318,7 +327,7 @@ impl Dlx {
             }
 
             if let None = max_seen {
-                return Err(DlxError::InvalidRow("must not be empty"));
+                return Err(DlxError::InputMustNotBeEmpty);
             }
             Ok(())
         })();
