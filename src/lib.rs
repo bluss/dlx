@@ -48,7 +48,7 @@ impl TryFrom<usize> for Direction {
     }
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, PartialEq)]
 pub(crate) struct Node<T> {
     /// Prev, Next, Up, Down
     link: [usize; 4],
@@ -113,7 +113,7 @@ impl<T> Node<T> {
 pub type UInt = u32;
 pub type Int = i32;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Dlx {
     /// Node layout in DLX:
     /// [ Head ]    [ Columns ... ]
@@ -127,7 +127,7 @@ pub struct Dlx {
     rows: UInt,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 enum Point {
     /// Alive count in header
     Head(UInt),
@@ -480,10 +480,10 @@ pub enum XError { Error }
 
 pub fn algox(dlx: &mut Dlx) -> Result<(), XError> {
     trace!("algorithm X start");
-    algox_inner(dlx)
+    algox_inner(dlx, &mut Vec::new())
 }
 
-fn algox_inner(dlx: &mut Dlx) -> Result<(), XError> {
+fn algox_inner(dlx: &mut Dlx, solution: &mut Vec<usize>) -> Result<(), XError> {
     /*
     1. If the matrix A has no columns, the current partial solution is a valid solution; terminate successfully.
     2. Otherwise choose a column c (deterministically).
@@ -499,64 +499,72 @@ fn algox_inner(dlx: &mut Dlx) -> Result<(), XError> {
 
     6. Repeat this algorithm recursively on the reduced matrix A.
     */
+    trace!("Enter algo X with exploring from solution {:?}", solution);
+    if_trace!(dlx.format());
 
-    let mut solution = Vec::new();
-    loop {
-        // 1. is the matrix empty
-        let empty = dlx.head_node().get(Next) == dlx.head();
-        trace!("empty = {}", empty);
-        if empty {
-            break;
-        }
-
-        // 2. Pick the least populated column
-        let mut col_heads = dlx.walk_column_heads();
-        let mut min = !0;
-        let mut col_index = 0;
-        while let Some((index, count)) = col_heads.next() {
-            if count < min {
-                min = count;
-                col_index = index;
-            }
-        }
-        trace!("Selected col_index = {}", col_index);
-
-        // 3. Explore the rows in the chosen column
-
-        // cover column
-        dlx.cover(col_index);
-        // now cover other columns sharing a one with this one
-        let mut col_iter = dlx.walk_from(col_index);
-        while let Some(col_i) = col_iter.next(dlx, Down) {
-            solution.push(col_i);
-            trace!("solution {:?}", solution);
-            let mut row_iter = dlx.walk_from(col_i);
-            while let Some(row_j) = row_iter.next(dlx, Next) {
-                //trace!("walked to col_i={}, row_j={}", col_i, row_j);
-                if let Ok(chead) = dlx.col_head_of(row_j) {
-                    dlx.cover(chead);
-                }
-            }
-            trace!("Recurse!");
-            if_trace!(dlx.format());
-
-            let _ = solution.pop();
-            trace!("solution {:?}", solution);
-
-            let mut row_iter = dlx.walk_from(col_i);
-            while let Some(row_j) = row_iter.next(dlx, Next.opp()) {
-                if let Ok(chead) = dlx.col_head_of(row_j) {
-                    dlx.uncover(chead);
-                }
-            }
-        }
-        dlx.uncover(col_index);
-
-        break;
+    // 1. is the matrix empty
+    let empty = dlx.head_node().get(Next) == dlx.head();
+    if empty {
+        // We have a solution
+        trace!("==> Valid solution: {:?}", solution);
+        return Ok(());
     }
 
+    // 2. Pick the least populated column
+    let mut col_heads = dlx.walk_column_heads();
+    let mut min = !0;
+    let mut col_index = 0;
+    while let Some((index, count)) = col_heads.next() {
+        if count < min {
+            min = count;
+            col_index = index;
+        }
+    }
+
+    if min == 0 {
+        trace!("Column {} unsatsified, backtracking", col_index);
+        return Ok(());
+    }
+
+    trace!("Selected col_index = {}", col_index);
+
+    // 3. Explore the rows in the chosen column
+
+    // cover column
+    dlx.cover(col_index);
+    // now cover other columns sharing a one with this one
+    let mut col_iter = dlx.walk_from(col_index);
+    while let Some(col_i) = col_iter.next(dlx, Down) {
+
+        // 4. Include row r in the partial solution
+        solution.push(col_i);
+        trace!("solution {:?}", solution);
+
+        // 5. Cover each column
+        let mut row_iter = dlx.walk_from(col_i);
+        while let Some(row_j) = row_iter.next(dlx, Next) {
+            //trace!("walked to col_i={}, row_j={}", col_i, row_j);
+            if let Ok(chead) = dlx.col_head_of(row_j) {
+                dlx.cover(chead);
+            }
+        }
+
+        // 6. Repeat this algorithm recursively on the reduced matrix A.
+        trace!("Recurse!");
+        algox_inner(dlx, solution)?;
+
+        let _ = solution.pop();
+        trace!("solution {:?}", solution);
+
+        let mut row_iter = dlx.walk_from(col_i);
+        while let Some(row_j) = row_iter.next(dlx, Next.opp()) {
+            if let Ok(chead) = dlx.col_head_of(row_j) {
+                dlx.uncover(chead);
+            }
+        }
+    }
+    dlx.uncover(col_index);
     Ok(())
-    //Err(XError::Error)
 }
 
 #[cfg(test)]
