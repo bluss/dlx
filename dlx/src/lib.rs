@@ -380,15 +380,19 @@ impl Dlx {
 
     /// Get row index for node index
     pub(crate) fn row_index_of(&self, index: Index) -> usize {
-        let pos = self.row_table.binary_search_by(move |&x| {
+        match self.row_table.binary_search_by(move |&x| {
             if x <= index {
                 Ordering::Less
             } else {
                 Ordering::Greater
             }
-        }).unwrap_err(); /* never equal */
-        debug_assert_ne!(pos, 0, "solution contains index before first row");
-        pos - 1
+        }) {
+            /* never equal, so never Ok */
+            Ok(pos) | Err(pos) => {
+                debug_assert_ne!(pos, 0, "solution contains index before first row");
+                pos - 1
+            }
+        }
     }
 
     /// Return solution as the row indexes (zero-indexed)
