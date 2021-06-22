@@ -62,9 +62,16 @@ fn is_blank(s: &str) -> bool {
     }
 }
 
+fn is_spacer(s: &str) -> bool {
+    match s {
+        "" | ";" | "|" | "+" | "-" => true,
+        _otherwise => false
+    }
+}
+
 fn parse(s: &str) -> Result<SudokuInput, ParseError> {
     let parts: Vec<Option<UInt>> = s.split(char::is_whitespace)
-        .filter(|s| *s != ";" && *s != "")
+        .filter(|s| !is_spacer(*s) && (s.len() <= 1 || !s.split("").all(is_spacer)))
         .map(|s| if is_blank(s) { Ok(None) } else { Some(s.parse::<UInt>()).transpose() })
         .collect::<Result<Vec<Option<UInt>>, _>>()
         .map_err(|_| ParseError(""))?;
@@ -422,15 +429,19 @@ mod tests {
     #[test]
     fn test_9x9_easy() {
         let v = parse("
-         ; . . . ; . 3 . ; . . . ;  
-         ; 7 . 5 ; 9 . . ; . . 2 ;  
-         ; 9 . . ; . . 1 ; . . . ;  
-         ; . 5 1 ; . . . ; . 8 3 ;  
-         ; . . . ; 3 . . ; 5 . . ;  
-         ; 4 8 . ; . . . ; 7 6 . ;  
-         ; . . . ; . . . ; . . 1 ;  
-         ; . . 8 ; . . 2 ; 9 . . ;  
-         ; . . . ; . 9 . ; 6 2 . ;  
+ +-------+-------+-------+  
+ | . . . | . 3 . | . . . |  
+ | 7 . 5 | 9 . . | . . 2 |  
+ | 9 . . | . . 1 | . . . |  
+ +-------+-------+-------+  
+ | . 5 1 | . . . | . 8 3 |  
+ | . . . | 3 . . | 5 . . |  
+ | 4 8 . | . . . | 7 6 . |  
+ +-------+-------+-------+  
+ | . . . | . . . | . . 1 |  
+ | . . 8 | . . 2 | 9 . . |  
+ | . . . | . 9 . | 6 2 . |  
+ +-------+-------+-------+ 
         ").unwrap();
         let mut p = create_problem(&v);
         let mut solution = None;
