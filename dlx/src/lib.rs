@@ -3,32 +3,9 @@
 //! This solver solves the exact cover problem using “algorithm X”, implemented using Dancing Links
 //! (“Dlx”).
 
-#[cfg(feature="trace")]
-macro_rules! trace {
-    ($($t:tt)*) => { eprintln!($($t)*) }
-}
-
-#[cfg(feature="trace")]
-macro_rules! if_trace {
-    ($($t:tt)*) => { $($t)* }
-}
-
-#[cfg(not(feature="trace"))]
-macro_rules! trace {
-    ($($t:tt)*) => { }
-}
-
-#[cfg(not(feature="trace"))]
-macro_rules! if_trace {
-    ($($t:tt)*) => { }
-}
-
-
 use std::cmp::Ordering;
 use std::fmt;
 use std::iter::repeat;
-
-type Index = usize;
 
 // Direction of list link
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -62,9 +39,12 @@ impl Direction {
 #[derive(Copy, Clone, Default, PartialEq)]
 pub(crate) struct Node<T> {
     /// Prev, Next, Up, Down
-    link: [usize; 4],
+    link: [Index; 4],
     pub(crate) value: T,
 }
+
+/// Internal index type used by the Node
+type Index = usize;
 
 impl<T> fmt::Debug for Node<T> where T: fmt::Debug {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -99,10 +79,33 @@ impl<T> Node<T> {
     }
 
     /// Assign link in the given direction
-    fn assign(&mut self, dir: Direction) -> &mut usize {
+    fn assign(&mut self, dir: Direction) -> &mut Index {
         &mut self.link[dir as usize]
     }
 }
+
+// These macros are used trace debug logging
+
+#[cfg(feature="trace")]
+macro_rules! trace {
+    ($($t:tt)*) => { eprintln!($($t)*) }
+}
+
+#[cfg(feature="trace")]
+macro_rules! if_trace {
+    ($($t:tt)*) => { $($t)* }
+}
+
+#[cfg(not(feature="trace"))]
+macro_rules! trace {
+    ($($t:tt)*) => { }
+}
+
+#[cfg(not(feature="trace"))]
+macro_rules! if_trace {
+    ($($t:tt)*) => { }
+}
+
 
 /// Universe integer type
 pub type UInt = u32;
@@ -110,21 +113,43 @@ type Int = i32;
 
 /// Dancing Links structure
 ///
-/// This is a “Dancing Links” data structure implementation. The structure
-/// is like a sparse binary matrix and it uses a doubly linked list implementation
-/// in two dimensions.
+/// This is a “Dancing Links” data structure. The structure corresponds to a sparse binary matrix
+/// and it uses two-dimensional doubly linked lists.
 ///
 /// See Knuth for papers about this structure and about “algorithm X”.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Dlx {
     /// Node layout in DLX:
-    /// [ Head ]    [ Columns ... ]
-    /// [ Row items ... ]
-    /// [ Row items ... ]
-    /// ... etc.
     ///
-    /// Doubly linked list in two dimensions: Prev, Next and Up, Down.
-    pub(crate) nodes: Vec<Node<Point>>,
+    /// ```text
+    ///
+    ///           ..    ..    ..
+    ///           ||    ||    ||
+    ///   Head <> C1 <> C2 <> C3 <> ...       (Head and column heads)
+    ///           ||    ||    ||
+    ///           R1  <    >  R2  <       ..  (Row items)
+    ///           ||    ||          ||
+    ///                 R3  <    >  R4  < ..
+    ///                 ||          ||
+    ///                 ..          ..
+    ///
+    ///   ... etc.
+    ///   where || are a Up/Down links and <> Prev/Next links.
+    /// ```
+    ///
+    /// Head is only linked to the column row.
+    /// Note that R1 links directly to R2 and so on, the matrix is sparse.
+    ///
+    /// Circular doubly linked list in two dimensions: Prev, Next and Up, Down.
+    ///
+    /// All the column heads and row items can “dance”: you can remove them and
+    /// then restore them again.
+    /// The head node is never removed, it always stays, and when the matrix is
+    /// empty, it links to itself in all directions.
+    ///
+    /// All nodes carry a value and how it is used is described under Point.
+    nodes: Vec<Node<Point>>,
+    /// Number of columns
     columns: UInt,
     /// Index with the start of each row (sorted, ascending order);
     /// used for lookup from node index to row index.
