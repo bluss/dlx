@@ -236,7 +236,6 @@ impl SudokuProblem {
     }
 
     pub fn into_dlx(self) -> SudokuProblemDlx {
-        let nu = self.sudoku_size;
         let mut dlx = Dlx::new(self.columns);
         for subset in self.subsets {
             dlx.append_row(subset).unwrap();
