@@ -169,6 +169,11 @@ impl Point {
     pub(crate) fn value(&self) -> UInt {
         use Point::*;
 
+        match self {
+            Head(_) => debug_assert!(false, "Possible error: no need to access Head's value"),
+            Column(_) | Body(_) => {}
+        }
+
         match *self {
             Head(x) | Column(x) | Body(x) => x
         }
@@ -761,7 +766,6 @@ mod tests {
         dlx.append_row([2]).unwrap();
         dlx.append_row([2, 3]).unwrap();
         println!("{:#?}", dlx);
-        assert_eq!(dlx.get_value(0), 0);
         assert_eq!(dlx.get_value(1), 1);
         assert_eq!(dlx.get_value(2), 2);
         assert_eq!(dlx.get_value(3), 2);
