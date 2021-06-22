@@ -515,11 +515,11 @@ impl ColumnHeadWalker<'_> {
 }
 
 #[derive(Clone, Debug)]
-pub enum XError { Error }
+pub enum XError { }
 
-pub fn algox(dlx: &mut Dlx, mut out: impl FnMut(Vec<UInt>)) -> Result<(), XError> {
+pub fn algox(dlx: &mut Dlx, mut out: impl FnMut(Vec<UInt>)) {
     trace!("algorithm X start");
-    algox_inner(dlx, &mut Vec::new(), &mut out)
+    algox_inner(dlx, &mut Vec::new(), &mut out).unwrap()
 }
 
 fn algox_inner<F>(dlx: &mut Dlx, solution: &mut Vec<usize>, out: &mut F) -> Result<(), XError>
@@ -652,7 +652,7 @@ mod tests {
         println!("{:#?}", dlx);
         dlx.format();
         let mut solution = None;
-        algox(&mut dlx, |s| solution = Some(s)).unwrap();
+        algox(&mut dlx, |s| solution = Some(s));
         dlx.format();
         assert_eq!(solution, Some(vec![1, 3, 5]), "solution mismatch");
     }
@@ -683,7 +683,7 @@ mod tests {
         println!("{:#?}", dlx);
         dlx.format();
         let mut solution = None;
-        algox(&mut dlx, |s| solution = Some(s)).unwrap();
+        algox(&mut dlx, |s| solution = Some(s));
         dlx.format();
         assert_eq!(solution, Some(vec![3, 0, 4]), "solution mismatch");
     }
@@ -709,7 +709,7 @@ mod tests {
         println!("{:#?}", dlx);
         dlx.format();
         let mut solution = None;
-        algox(&mut dlx, |s| solution = Some(s)).unwrap();
+        algox(&mut dlx, |s| solution = Some(s));
         dlx.format();
         assert_eq!(solution, None, "solution mismatch");
     }
@@ -727,7 +727,7 @@ mod tests {
         println!("{:#?}", dlx);
         dlx.format();
         let mut solution = None;
-        algox(&mut dlx, |s| solution = Some(s)).unwrap();
+        algox(&mut dlx, |s| solution = Some(s));
         dlx.format();
         assert_eq!(solution, Some(vec![0, 1]), "solution mismatch");
     }
@@ -745,7 +745,7 @@ mod tests {
         println!("{:#?}", dlx);
         dlx.format();
         let mut solution = None;
-        algox(&mut dlx, |s| solution = Some(s)).unwrap();
+        algox(&mut dlx, |s| solution = Some(s));
         dlx.format();
         assert_eq!(solution, None, "solution mismatch");
     }
