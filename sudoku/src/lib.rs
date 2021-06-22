@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use dlx::Dlx;
 use dlx::UInt;
 
+use std::error::Error;
 use std::fmt;
 
 #[derive(Clone, Debug)]
@@ -73,6 +74,14 @@ impl Point {
 
 #[derive(Debug)]
 pub struct ParseError(String);
+
+impl Error for ParseError { }
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 // is blank for sudoku
 fn is_blank(s: &str) -> bool {
