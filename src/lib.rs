@@ -213,18 +213,15 @@ impl Dlx {
         self.nodes[self.column_head(col)].value.value()
     }
 
-    pub(crate) fn walk_column_heads(&self) -> ColumnHeadWalker<'_> {
-        ColumnHeadWalker {
-            nodes: &self.nodes,
-            index: 0,
-        }
-    }
-
     pub(crate) fn walk_from(&self, index: Index) -> Walker {
         Walker {
             index,
             start: index,
         }
+    }
+
+    pub(crate) fn get_value(&self, index: Index) -> UInt {
+        self.nodes[index].value.value()
     }
 
     /// Get the column head for row item `index`
@@ -485,23 +482,6 @@ impl Walker {
     }
 }
 
-pub struct ColumnHeadWalker<'a> {
-    nodes: &'a [Node<Point>],
-    index: Index,
-}
-
-impl ColumnHeadWalker<'_> {
-    pub fn next(&mut self) -> Option<(Index, UInt)> {
-        let next = self.nodes[self.index].get(Next);
-        if next == 0 {
-            None
-        } else {
-            self.index = next;
-            Some((next, self.nodes[next].value.value()))
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 pub(crate) enum XError { }
 
@@ -549,19 +529,22 @@ where
     }
 
     // 2. Pick the least populated column
-    let mut col_heads = dlx.walk_column_heads();
-    let mut min = !0;
     let mut col_index = 0;
-    while let Some((index, count)) = col_heads.next() {
-        if count < min {
-            min = count;
-            col_index = index;
+    {
+        let mut col_heads = dlx.walk_from(dlx.head());
+        let mut min = !0;
+        while let Some(index) = col_heads.next(dlx, Next) {
+            let count = dlx.get_value(index);
+            if count < min {
+                min = count;
+                col_index = index;
+            }
         }
-    }
 
-    if min == 0 {
-        trace!("Column {} unsatsified, backtracking", col_index);
-        return Ok(());
+        if min == 0 {
+            trace!("Column {} unsatsified, backtracking", col_index);
+            return Ok(());
+        }
     }
 
     trace!("Selected col_index = {}", col_index);
