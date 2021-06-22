@@ -116,15 +116,15 @@ pub struct Dlx {
     ///
     /// ```text
     ///
-    ///           ..    ..    ..
-    ///           ||    ||    ||
-    ///   Head <> C1 <> C2 <> C3 <> ...       (Head and column heads)
-    ///           ||    ||    ||
-    ///           R1  <    >  R2  <       ..  (Row items)
-    ///           ||    ||          ||
-    ///                 R3  <    >  R4  < ..
-    ///                 ||          ||
-    ///                 ..          ..
+    ///            ..    ..    ..
+    ///            ||    ||    ||
+    /// :> Head <> C1 <> C2 <> C3 <> ... <:    (Head and column heads)
+    ///            ||    ||    ||
+    ///         :> R1  <    >  R2  <       ..  (Row items)
+    ///            ||    ||          ||
+    ///               :> R3  <    >  R4  < ..
+    ///                  ||          ||
+    ///                  ..          ..
     ///
     ///   ... etc.
     ///   where || are a Up/Down links and <> Prev/Next links.
@@ -133,7 +133,8 @@ pub struct Dlx {
     /// Head is only linked to the column row.
     /// Note that R1 links directly to R2 and so on, the matrix is sparse.
     ///
-    /// Circular doubly linked list in two dimensions: Prev, Next and Up, Down.
+    /// The lists are doubly linked and circular, in two dimensions: Prev, Next
+    /// and Up, Down.
     ///
     /// All the column heads and row items can “dance”: you can remove them and
     /// then restore them again.
