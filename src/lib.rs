@@ -116,7 +116,8 @@ pub struct Dlx {
     pub(crate) nodes: Vec<Node<Point>>,
     columns: UInt,
     rows: UInt,
-    /// Index with the start of each row (sorted, ascending order)
+    /// Index with the start of each row (sorted, ascending order);
+    /// used for lookup from node index to row index.
     row_table: Vec<Index>,
 }
 
@@ -381,7 +382,8 @@ impl Dlx {
         self.nodes[xr].set(left, x);
     }
 
-    pub(crate) fn cover(&mut self, col_head: Index) {
+    /// Cover column c
+    pub(crate) fn cover(&mut self, c: Index) {
         // cover column
         //
         // start from column head c
@@ -390,10 +392,10 @@ impl Dlx {
         //   Go Next in row and unlink in Up/Down
         //   (Not unlinking i itself)
         //   Decrement column's count
-        debug_assert!(col_head > 0 && col_head <= self.columns as _, "Not a column head: {}", col_head);
-        trace!("cover column {}", col_head);
+        trace!("cover column {}", c);
+        debug_assert!(c > 0 && c <= self.columns as _,
+                      "Not a column head: {}", c);
 
-        let c = col_head;
         self.remove(c, Next);
         let mut rows = self.walk_from(c);
         while let Some(row_i) = rows.next(self, Down) {
@@ -406,8 +408,11 @@ impl Dlx {
         if_trace!(self.format());
     }
 
-    pub(crate) fn uncover(&mut self, col_head: Index) {
+    /// Uncover column c
+    pub(crate) fn uncover(&mut self, c: Index) {
         // uncover column
+        //
+        // steps taken in the reverse order of cover.
         //
         // start from column head c
         // step Up in rows to i
@@ -415,10 +420,10 @@ impl Dlx {
         //   (Not unlinking i itself)
         //   Increment column's count
         // column head c restored in Prev/Next
-        debug_assert!(col_head > 0 && col_head <= self.columns as _, "Not a column head: {}", col_head);
-        trace!("uncover column {}", col_head);
+        trace!("uncover column {}", c);
+        debug_assert!(c > 0 && c <= self.columns as _,
+                      "Not a column head: {}", c);
 
-        let c = col_head;
         let mut rows = self.walk_from(c);
         while let Some(row_i) = rows.next(self, Down.opp()) {
             let mut row_i_walk = self.walk_from(row_i);
