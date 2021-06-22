@@ -1,4 +1,7 @@
-// from bluss dlx solver
+//! Dancing Links solver for “algorithm X” by Knuth
+//!
+//! This solver solves the exact cover problem using “algorithm X”, implemented using Dancing Links
+//! (“Dlx”).
 
 #[cfg(feature="trace")]
 macro_rules! trace {

@@ -1,3 +1,4 @@
+//! Sudoku solver using the dlx library
 
 use dlx::Dlx;
 use dlx::UInt;
