@@ -7,6 +7,7 @@ macro_rules! if_trace {
     ($($t:tt)*) => { $($t)* }
 }
 
+use std::cmp::Ordering;
 use std::fmt;
 use std::convert::TryFrom;
 use std::iter::repeat;
@@ -125,6 +126,8 @@ pub struct Dlx {
     pub(crate) nodes: Vec<Node<Point>>,
     columns: UInt,
     rows: UInt,
+    /// Index with the start of each row (sorted, ascending order)
+    row_table: Vec<Index>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -189,6 +192,7 @@ impl Dlx {
             nodes,
             columns: universe,
             rows: 0,
+            row_table: Vec::new(),
         }
     }
 
@@ -203,6 +207,7 @@ impl Dlx {
         col as Index
     }
 
+    #[cfg(test)]
     fn column_count(&self, col: UInt) -> UInt {
         assert!(col <= self.columns);
         self.nodes[self.column_head(col)].value.value()
@@ -293,10 +298,6 @@ impl Dlx {
 
     pub fn append_row(&mut self, row: impl IntoIterator<Item=UInt>) -> Result<(), DlxError> {
         let start_index = self.nodes.len();
-        let row_number = self.rows + 1;
-        let mut row_head = Node::new(Point::Row(row_number));
-        self.nodes.push(row_head);
-        self.append_to_column(0, start_index);
         let mut max_seen = None;
         for r in row {
             if let Some(ms) = max_seen {
@@ -311,7 +312,7 @@ impl Dlx {
                 return Err(DlxError::InvalidRow("row larger than column count"));
             }
             max_seen = Some(r);
-            let mut body_node = Node::new(Point::Body(r));
+            let body_node = Node::new(Point::Body(r));
             let index = self.nodes.len();
             self.nodes.push(body_node);
             self.append_to_column(r, index);
@@ -330,8 +331,33 @@ impl Dlx {
             node.set(Next, next_index);
         }
         self.rows += 1;
+        self.row_table.push(start_index);
 
         Ok(())
+    }
+
+    /// Return solution as the row indexes (zero-indexed)
+    pub(crate) fn solution_to_rows(&self, sol: &[Index]) -> Vec<UInt> {
+        // Given a table like
+        // [8, 11, 13, 17]
+        // we map indexes to:
+        // 8, 9, 10 => 0
+        // 11, 12 => 1
+        // 13 => 2
+        // 17, 18 => 3
+        let mut res = Vec::with_capacity(sol.len());
+        for &s in sol {
+            let pos = self.row_table.binary_search_by(move |&x| {
+                if x <= s {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            }).unwrap_err(); /* never equal */
+            debug_assert_ne!(pos, 0, "solution contains index before first row");
+            res.push((pos - 1) as UInt);
+        }
+        res
     }
 
     /// Remove `x` from the list in direction `dir`, where the list is doubly linked.
@@ -426,6 +452,8 @@ impl Dlx {
         }
         eprintln!();
 
+        return;
+
 
         let mut rows = self.walk_from(0);
         while let Some(row_head) = rows.next(self, Down) {
@@ -478,12 +506,15 @@ impl ColumnHeadWalker<'_> {
 #[derive(Clone, Debug)]
 pub enum XError { Error }
 
-pub fn algox(dlx: &mut Dlx) -> Result<(), XError> {
+pub fn algox(dlx: &mut Dlx, mut out: impl FnMut(Vec<UInt>)) -> Result<(), XError> {
     trace!("algorithm X start");
-    algox_inner(dlx, &mut Vec::new())
+    algox_inner(dlx, &mut Vec::new(), &mut out)
 }
 
-fn algox_inner(dlx: &mut Dlx, solution: &mut Vec<usize>) -> Result<(), XError> {
+fn algox_inner<F>(dlx: &mut Dlx, solution: &mut Vec<usize>, out: &mut F) -> Result<(), XError>
+where
+    F: FnMut(Vec<UInt>)
+{
     /*
     1. If the matrix A has no columns, the current partial solution is a valid solution; terminate successfully.
     2. Otherwise choose a column c (deterministically).
@@ -506,7 +537,9 @@ fn algox_inner(dlx: &mut Dlx, solution: &mut Vec<usize>) -> Result<(), XError> {
     let empty = dlx.head_node().get(Next) == dlx.head();
     if empty {
         // We have a solution
-        trace!("==> Valid solution: {:?}", solution);
+        let sol = dlx.solution_to_rows(solution);
+        trace!("==> Valid solution: {:?} (index {:?})", sol, solution);
+        out(sol);
         return Ok(());
     }
 
@@ -551,7 +584,7 @@ fn algox_inner(dlx: &mut Dlx, solution: &mut Vec<usize>) -> Result<(), XError> {
 
         // 6. Repeat this algorithm recursively on the reduced matrix A.
         trace!("Recurse!");
-        algox_inner(dlx, solution)?;
+        algox_inner(dlx, solution, out)?;
 
         let _ = solution.pop();
         trace!("solution {:?}", solution);
@@ -594,6 +627,8 @@ mod tests {
         D = {3, 5, 6};
         E = {2, 3, 6, 7}; and
         F = {2, 7}.
+
+        with solution B, D, F (indices 1, 3, 5)
         */
         let mut dlx = Dlx::new(7);
         dlx.append_row([1, 4, 7]).unwrap();
@@ -604,8 +639,10 @@ mod tests {
         dlx.append_row([2, 7]).unwrap();
         println!("{:#?}", dlx);
         dlx.format();
-        algox(&mut dlx).unwrap();
+        let mut solution = None;
+        algox(&mut dlx, |s| solution = Some(s)).unwrap();
         dlx.format();
+        assert_eq!(solution, Some(vec![1, 3, 5]), "solution mismatch");
     }
 
     #[test]
@@ -617,6 +654,12 @@ mod tests {
         d = {1, 4};
         e = {2, 7}; and
         f = {4, 5, 7}.
+
+        Solution is:
+            {1, 4}
+            {3, 5, 6}
+            {2, 7}
+         with indices 3, 0, 4
         */
         let mut dlx = Dlx::new(7);
         dlx.append_row([3, 5, 6]).unwrap();
@@ -627,7 +670,88 @@ mod tests {
         dlx.append_row([4, 5, 7]).unwrap();
         println!("{:#?}", dlx);
         dlx.format();
-        algox(&mut dlx).unwrap();
+        let mut solution = None;
+        algox(&mut dlx, |s| solution = Some(s)).unwrap();
         dlx.format();
+        assert_eq!(solution, Some(vec![3, 0, 4]), "solution mismatch");
+    }
+
+    #[test]
+    fn dlx_size7_no_sol() {
+        /*
+        a = {3, 5, 7};
+        b = {1, 4, 7};
+        c = {2, 3, 6};
+        d = {1, 4};
+        e = {2, 7}; and
+        f = {4, 5, 7}.
+        No solution
+        */
+        let mut dlx = Dlx::new(7);
+        dlx.append_row([3, 5, 7]).unwrap();
+        dlx.append_row([1, 4, 7]).unwrap();
+        dlx.append_row([2, 3, 6]).unwrap();
+        dlx.append_row([1, 4]).unwrap();
+        dlx.append_row([2, 7]).unwrap();
+        dlx.append_row([4, 5, 7]).unwrap();
+        println!("{:#?}", dlx);
+        dlx.format();
+        let mut solution = None;
+        algox(&mut dlx, |s| solution = Some(s)).unwrap();
+        dlx.format();
+        assert_eq!(solution, None, "solution mismatch");
+    }
+
+    #[test]
+    fn dlx_size2_triv() {
+        /*
+        a = {1};
+        b = {2};
+        Solution is 0, 1
+        */
+        let mut dlx = Dlx::new(2);
+        dlx.append_row([1]).unwrap();
+        dlx.append_row([2]).unwrap();
+        println!("{:#?}", dlx);
+        dlx.format();
+        let mut solution = None;
+        algox(&mut dlx, |s| solution = Some(s)).unwrap();
+        dlx.format();
+        assert_eq!(solution, Some(vec![0, 1]), "solution mismatch");
+    }
+
+    #[test]
+    fn dlx_size2_no_sol() {
+        /*
+        a = {1};
+        b = {1};
+        No solution
+        */
+        let mut dlx = Dlx::new(2);
+        dlx.append_row([1]).unwrap();
+        dlx.append_row([1]).unwrap();
+        println!("{:#?}", dlx);
+        dlx.format();
+        let mut solution = None;
+        algox(&mut dlx, |s| solution = Some(s)).unwrap();
+        dlx.format();
+        assert_eq!(solution, None, "solution mismatch");
+    }
+
+    #[test]
+    fn dlx_solution_convert() {
+        // [8, 11, 13, 17]
+        //
+        // 8, 9, 10 => 0
+        // 11, 12, 13 => 1,
+        let dlx = Dlx {
+            nodes: Vec::new(),
+            columns: 0,
+            rows: 0,
+            row_table: vec![8, 11, 13, 17],
+        };
+
+        assert_eq!(dlx.solution_to_rows(&[8, 9, 10, 11, 12, 13, 14, 17, 23]),
+                   vec![0, 0, 0, 1, 1, 2, 2, 3, 3]);
     }
 }
