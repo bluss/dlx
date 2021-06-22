@@ -536,13 +536,34 @@ pub struct AlgoXConfig {
     stats: Option<AlgoXStats>,
 }
 
+/// Solution of from algorithm X
+///
+/// This solution can be converted (on demand) to the row indices it corresponds to.
+#[derive(Clone, Debug)]
+pub struct AlgoXSolution<'a> {
+    raw: &'a [Index],
+    dlx: &'a Dlx,
+}
+
+impl AlgoXSolution<'_> {
+    /// Return length of solution
+    pub fn len(&self) -> usize {
+        self.raw.len()
+    }
+
+    /// Return solution as row identifiers
+    pub fn get(&self) -> Vec<UInt> {
+        self.dlx.solution_to_rows(&self.raw)
+    }
+}
+
 /// Knuth's “Algorithm X”, a constraint satisfaction problem solver for the exact cover problem.
 ///
 /// Implemented using Dancing Links.
 ///
 /// - dlx: Problem formulation in terms of a dancing links graph
 /// - out: Solution callback, called once for each solution.
-pub fn algox(dlx: &mut Dlx, out: impl FnMut(Vec<UInt>)) {
+pub fn algox(dlx: &mut Dlx, out: impl FnMut(AlgoXSolution<'_>)) {
     let mut config = AlgoXConfig::default();
     if cfg!(feature = "stats_by_default") {
         config.stats = Some(AlgoXStats::default());
@@ -550,7 +571,7 @@ pub fn algox(dlx: &mut Dlx, out: impl FnMut(Vec<UInt>)) {
     algox_config(dlx, &mut config, out);
 }
 
-pub fn algox_config(dlx: &mut Dlx, config: &mut AlgoXConfig, mut out: impl FnMut(Vec<UInt>)) {
+pub fn algox_config(dlx: &mut Dlx, config: &mut AlgoXConfig, mut out: impl FnMut(AlgoXSolution<'_>)) {
     trace!("Algorithm X start");
     algox_inner(dlx, &mut Vec::new(), config, &mut out).unwrap();
     if cfg!(feature = "stats") {
@@ -571,7 +592,7 @@ macro_rules! stat {
 fn algox_inner<F>(dlx: &mut Dlx, partial_solution: &mut Vec<usize>, config: &mut AlgoXConfig, out: &mut F)
     -> Result<(), XError>
 where
-    F: FnMut(Vec<UInt>)
+    F: FnMut(AlgoXSolution<'_>)
 {
     /*
     1. If the matrix A has no columns, the current partial solution is a valid solution; terminate successfully.
@@ -596,10 +617,11 @@ where
     let empty = dlx.head_node().get(Next) == dlx.head();
     if empty {
         // We have a solution
-        let sol = dlx.solution_to_rows(partial_solution);
-        trace!("==> Valid solution: {:?} (index {:?})", sol, partial_solution);
+        // TODO: pass out a reference to solution here, that the user can choose to resolve or not
+        let xsolution = AlgoXSolution { raw: &partial_solution, dlx: &dlx };
+        trace!("==> Valid solution: {:?}", xsolution.raw);
         stat!(config.solutions += 1);
-        out(sol);
+        out(xsolution);
         return Ok(());
     }
 
@@ -710,7 +732,7 @@ mod tests {
         println!("{:#?}", dlx);
         dlx.format(true);
         let mut solution = None;
-        algox(&mut dlx, |s| solution = Some(s));
+        algox(&mut dlx, |s| solution = Some(s.get()));
         dlx.format(true);
         assert_eq!(solution, Some(vec![1, 3, 5]), "solution mismatch");
     }
@@ -741,7 +763,7 @@ mod tests {
         println!("{:#?}", dlx);
         dlx.format(true);
         let mut solution = None;
-        algox(&mut dlx, |s| solution = Some(s));
+        algox(&mut dlx, |s| solution = Some(s.get()));
         dlx.format(true);
         assert_eq!(solution, Some(vec![3, 0, 4]), "solution mismatch");
     }
@@ -767,7 +789,7 @@ mod tests {
         println!("{:#?}", dlx);
         dlx.format(true);
         let mut solution = None;
-        algox(&mut dlx, |s| solution = Some(s));
+        algox(&mut dlx, |s| solution = Some(s.get()));
         dlx.format(true);
         assert_eq!(solution, None, "solution mismatch");
     }
@@ -778,7 +800,7 @@ mod tests {
         println!("{:#?}", dlx);
         dlx.format(true);
         let mut solution = None;
-        algox(&mut dlx, |s| solution = Some(s));
+        algox(&mut dlx, |s| solution = Some(s.get()));
         dlx.format(true);
         assert_eq!(solution, Some(vec![]), "solution mismatch");
     }
@@ -796,7 +818,7 @@ mod tests {
         println!("{:#?}", dlx);
         dlx.format(true);
         let mut solution = None;
-        algox(&mut dlx, |s| solution = Some(s));
+        algox(&mut dlx, |s| solution = Some(s.get()));
         dlx.format(true);
         assert_eq!(solution, Some(vec![0, 1]), "solution mismatch");
     }
@@ -814,7 +836,7 @@ mod tests {
         println!("{:#?}", dlx);
         dlx.format(true);
         let mut solution = None;
-        algox(&mut dlx, |s| solution = Some(s));
+        algox(&mut dlx, |s| solution = Some(s.get()));
         dlx.format(true);
         assert_eq!(solution, None, "solution mismatch");
     }
