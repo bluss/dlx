@@ -172,7 +172,7 @@ pub enum DlxError {
 }
 
 impl Dlx {
-    /// Create a new Dlx with the universe of points in 0..universe.
+    /// Create a new Dlx with the universe of points in 1..=universe
     pub fn new(universe: UInt) -> Self {
         // Insert head node and the column row.
         let mut nodes = vec![Node::new(Point::Head(0))];
@@ -446,6 +446,7 @@ impl Dlx {
         self.restore(c, Next);
     }
 
+    /// Print a debug representation of the Dlx
     pub(crate) fn format(&self) {
         let n_blocks = self.nodes.len().saturating_sub((1 + self.columns + self.rows) as usize);
         eprintln!("Dlx columns={}, rows={}, nodes={} (blocks={})",
@@ -515,7 +516,7 @@ impl ColumnHeadWalker<'_> {
 }
 
 #[derive(Clone, Debug)]
-pub enum XError { }
+pub(crate) enum XError { }
 
 /// Knuth's “Algorithm X”, a constraint satisfaction problem solver for the exact cover problem.
 ///
@@ -721,6 +722,17 @@ mod tests {
     }
 
     #[test]
+    fn dlx_size0_triv() {
+        let mut dlx = Dlx::new(0);
+        println!("{:#?}", dlx);
+        dlx.format();
+        let mut solution = None;
+        algox(&mut dlx, |s| solution = Some(s));
+        dlx.format();
+        assert_eq!(solution, Some(vec![]), "solution mismatch");
+    }
+
+    #[test]
     fn dlx_size2_triv() {
         /*
         a = {1};
@@ -754,6 +766,19 @@ mod tests {
         algox(&mut dlx, |s| solution = Some(s));
         dlx.format();
         assert_eq!(solution, None, "solution mismatch");
+    }
+
+    #[test]
+    fn dlx_err_zero() {
+        let mut dlx = Dlx::new(2);
+        dlx.append_row([1, 2]).unwrap();
+        let err = dlx.append_row([0, 1]);
+        assert!(err.is_err());
+        let err = dlx.append_row([1, 3]);
+        assert!(err.is_err());
+        assert_eq!(dlx.rows, 1);
+        println!("{:#?}", dlx);
+        dlx.format();
     }
 
     #[test]
