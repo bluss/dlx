@@ -196,18 +196,10 @@ fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
 
     // create constraints and subsets
     //
-    // 1. There is exactly 1 number in cell RxCy
-    //    N * N
-    //    name RxCy
-    // 2. Row x contains number z exactly once
-    //    N * N
-    //    name Rx #z
-    // 3. Col y contains number z exactly once
-    //    N * N
-    //    name Cy #z
-    // 4. Box b contains number z exactly once
-    //    N * N
-    //    name Bb #z
+    // RxCy: There is exactly 1 number in cell at x, y (N * N)
+    // Rx#z: Row x contains number z exactly once (N * N)
+    // Cy#z: Col y contains number z exactly once (N * N)
+    // Bb#z: Box b contains number z exactly once (N * N)
     //
     let offset = 1;
     let cat_offset = nu * nu;
