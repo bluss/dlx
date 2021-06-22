@@ -478,7 +478,7 @@ impl Dlx {
     }
 
     /// Print a debug representation of the Dlx
-    pub fn format(&self, include_rows: bool) {
+    pub fn debug_print(&self) {
         let n_blocks = self.nodes.len().saturating_sub(1 + self.columns as usize);
         eprintln!("Dlx columns={}, rows={}, nodes={} (blocks={})",
             self.columns, self.nrows(), self.nodes.len(), n_blocks);
@@ -500,10 +500,6 @@ impl Dlx {
         }
         eprint!("({} columns)", ncols);
         eprintln!();
-
-        if !include_rows && !cfg!(feature = "trace") {
-            return;
-        }
 
         for row_head in visible_rows.iter().filter_map(|x| x.as_ref().copied()) {
             let index = self.row_index_of(row_head);
@@ -623,7 +619,7 @@ pub fn algox(dlx: &mut Dlx, out: impl FnMut(AlgoXSolution<'_>)) {
 /// it was on entry.
 pub fn algox_config(dlx: &mut Dlx, config: &mut AlgoXConfig, mut out: impl FnMut(AlgoXSolution<'_>)) {
     trace!("Algorithm X start");
-    if_trace!(dlx.format(true));
+    if_trace!(dlx.debug_print(true));
     if cfg!(feature = "stats_trace") && config.stats.is_none() {
         config.stats = Some(AlgoXStats::default());
     }
@@ -768,7 +764,7 @@ mod tests {
         assert_eq!(dlx.get_value(2), 2);
         assert_eq!(dlx.get_value(3), 2);
         dlx.assert_links();
-        dlx.format(true);
+        dlx.debug_print();
     }
 
     #[test]
@@ -791,10 +787,10 @@ mod tests {
         dlx.append_row([2, 3, 6, 7]).unwrap();
         dlx.append_row([2, 7]).unwrap();
         println!("{:#?}", dlx);
-        dlx.format(true);
+        dlx.debug_print();
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s.get()));
-        dlx.format(true);
+        dlx.debug_print();
         assert_eq!(solution, Some(vec![1, 3, 5]), "solution mismatch");
     }
 
@@ -822,11 +818,11 @@ mod tests {
         dlx.append_row([2, 7]).unwrap();
         dlx.append_row([4, 5, 7]).unwrap();
         println!("{:#?}", dlx);
-        dlx.format(true);
+        dlx.debug_print();
         dlx.assert_links();
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s.get()));
-        dlx.format(true);
+        dlx.debug_print();
         assert_eq!(solution, Some(vec![3, 0, 4]), "solution mismatch");
     }
 
@@ -849,10 +845,10 @@ mod tests {
         dlx.append_row([2, 7]).unwrap();
         dlx.append_row([4, 5, 7]).unwrap();
         println!("{:#?}", dlx);
-        dlx.format(true);
+        dlx.debug_print();
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s.get()));
-        dlx.format(true);
+        dlx.debug_print();
         assert_eq!(solution, None, "solution mismatch");
     }
 
@@ -860,10 +856,10 @@ mod tests {
     fn dlx_size0_triv() {
         let mut dlx = Dlx::new(0);
         println!("{:#?}", dlx);
-        dlx.format(true);
+        dlx.debug_print();
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s.get()));
-        dlx.format(true);
+        dlx.debug_print();
         assert_eq!(solution, Some(vec![]), "solution mismatch");
     }
 
@@ -878,10 +874,10 @@ mod tests {
         dlx.append_row([1]).unwrap();
         dlx.append_row([2]).unwrap();
         println!("{:#?}", dlx);
-        dlx.format(true);
+        dlx.debug_print();
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s.get()));
-        dlx.format(true);
+        dlx.debug_print();
         assert_eq!(solution, Some(vec![0, 1]), "solution mismatch");
     }
 
@@ -896,10 +892,10 @@ mod tests {
         dlx.append_row([1]).unwrap();
         dlx.append_row([1]).unwrap();
         println!("{:#?}", dlx);
-        dlx.format(true);
+        dlx.debug_print();
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s.get()));
-        dlx.format(true);
+        dlx.debug_print();
         assert_eq!(solution, None, "solution mismatch");
     }
 
@@ -914,7 +910,7 @@ mod tests {
         assert_eq!(dlx.nrows(), 1);
         dlx.assert_links();
         println!("{:#?}", dlx);
-        dlx.format(true);
+        dlx.debug_print();
     }
 
     #[test]
@@ -944,7 +940,7 @@ mod tests {
         dlx.append_row([4]).unwrap();
         let dlx_old = dlx.clone();
         println!("{:#?}", dlx);
-        dlx.format(true);
+        dlx.debug_print();
 
         let mut solutions = Vec::new();
         {
