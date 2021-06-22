@@ -52,7 +52,7 @@ impl Point {
 }
 
 #[derive(Debug)]
-pub struct ParseError(&'static str);
+pub struct ParseError(String);
 
 // is blank for sudoku
 fn is_blank(s: &str) -> bool {
@@ -74,10 +74,10 @@ pub fn parse(s: &str) -> Result<SudokuInput, ParseError> {
         .filter(|s| !is_spacer(*s) && (s.len() <= 1 || !s.split("").all(is_spacer)))
         .map(|s| if is_blank(s) { Ok(None) } else { Some(s.parse::<UInt>()).transpose() })
         .collect::<Result<Vec<Option<UInt>>, _>>()
-        .map_err(|_| ParseError(""))?;
+        .map_err(|e| ParseError(e.to_string()))?;
 
     if parts.len() != 16 && parts.len() != 81 {
-        return Err(ParseError("Unsupported size"));
+        return Err(ParseError(format!("Unsupported size: got {} elements: {:?}", parts.len(), parts)));
     }
 
     Ok(SudokuInput(parts))
