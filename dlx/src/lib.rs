@@ -49,7 +49,7 @@ impl<T> fmt::Debug for Node<T> where T: fmt::Debug {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // avoid "pretty" debug
         // link as isize so that !0 shows as -1.
-        write!(f, "{} {{ {}: [{}, {}; {}, {}], {}: {} }}",
+        write!(f, "{} {{ {}: [{:3}, {:3}; {:3}, {:3}], {}: {} }}",
             stringify!(Node), stringify!(link),
             self.link[0] as isize, self.link[1] as isize,
             self.link[2] as isize, self.link[3] as isize,
