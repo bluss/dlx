@@ -146,12 +146,30 @@ fn box_of(sudoku_size: u16, x: UInt, y: UInt) -> UInt {
 
 #[derive(Clone, Debug)]
 struct SudokuProblem {
+    sudoku_size: UInt,
+    subsets: Vec<Vec<UInt>>,
+    /// Subset data: RxCy#z: Row x, Col y filled with z.
+    subset_data: Vec<[UInt; 3]>,
+}
+
+#[derive(Clone, Debug)]
+struct SudokuProblemDlx {
     dlx: Dlx,
     /// Subset data: RxCy#z: Row x, Col y filled with z.
     subset_data: Vec<[UInt; 3]>,
 }
 
 impl SudokuProblem {
+    fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
+        let mut solution_data = solution.iter().map(|&i| self.subset_data[i as usize]).collect::<Vec<_>>();
+        solution_data.sort_by_key(|d| (d[0], d[1]));
+        Sudoku {
+            values: solution_data.iter().map(|d| d[2] + 1).collect(),
+        }
+    }
+}
+
+impl SudokuProblemDlx {
     fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
         let mut solution_data = solution.iter().map(|&i| self.subset_data[i as usize]).collect::<Vec<_>>();
         solution_data.sort_by_key(|d| (d[0], d[1]));
@@ -229,17 +247,28 @@ fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
         }
     }
 
-    // TODO: Optimize by removing constraints and subsets which are fixed (only 1 subset fill)
-
-    let mut dlx = Dlx::new(nu * nu * 4);
-    subsets = dbg!(subsets);
-    for subset in subsets {
-        dlx.append_row(subset).unwrap();
-    }
-
     SudokuProblem {
-        dlx,
+        sudoku_size: nu,
+        subsets,
         subset_data,
+    }
+}
+
+impl SudokuProblem {
+    fn into_dlx(self) -> SudokuProblemDlx {
+        // TODO: Optimize by removing constraints and subsets which are fixed (only 1 subset fill)
+
+        let nu = self.sudoku_size;
+        let mut dlx = Dlx::new(nu * nu * 4);
+        for subset in self.subsets {
+            dlx.append_row(subset).unwrap();
+        }
+        let subset_data = self.subset_data;
+
+        SudokuProblemDlx {
+            dlx,
+            subset_data,
+        }
     }
 }
 
@@ -295,7 +324,7 @@ mod tests {
             4 . ; 1 2
             3 . ; . 4
         ").unwrap();
-        let mut p = create_problem(&v);
+        let mut p = create_problem(&v).into_dlx();
         println!("{:?}", p);
         let mut solution = None;
         algox(&mut p.dlx, |s| solution = Some(s));
@@ -311,7 +340,7 @@ mod tests {
             4 1 3 2
         ").unwrap();
         println!("{:?}", v);
-        let mut p = create_problem(&v);
+        let mut p = create_problem(&v).into_dlx();
         println!("{:?}", p);
         let mut solution = None;
         algox(&mut p.dlx, |s| solution = Some(s));
@@ -328,7 +357,7 @@ mod tests {
             4 . 3 2
         ").unwrap();
         println!("{:?}", v);
-        let mut p = create_problem(&v);
+        let mut p = create_problem(&v).into_dlx();
         println!("{:?}", p);
         let mut solution = None;
         p.dlx.format();
@@ -356,7 +385,7 @@ mod tests {
             4 . . 1
         ").unwrap();
         println!("{:?}", v);
-        let mut p = create_problem(&v);
+        let mut p = create_problem(&v).into_dlx();
         println!("{:?}", p);
         let mut solutions = Vec::new();
         p.dlx.format();
@@ -386,7 +415,7 @@ mod tests {
  | . . . | . 9 . | 6 2 . |  
  +-------+-------+-------+ 
         ").unwrap();
-        let mut p = create_problem(&v);
+        let mut p = create_problem(&v).into_dlx();
         let mut solution = None;
         p.dlx.format();
         algox(&mut p.dlx, |s| solution = Some(s));
