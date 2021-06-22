@@ -509,18 +509,53 @@ impl Walker {
 #[derive(Clone, Debug)]
 pub(crate) enum XError { }
 
+#[derive(Clone, Debug, Default)]
+pub struct AlgoXStats {
+    calls: usize,
+    cover: usize,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct AlgoXConfig {
+    // TODO: implement this config switch
+    emit_all: bool,
+    stats: Option<AlgoXStats>,
+}
+
 /// Knuth's “Algorithm X”, a constraint satisfaction problem solver for the exact cover problem.
 ///
 /// Implemented using Dancing Links.
 ///
 /// - dlx: Problem formulation in terms of a dancing links graph
 /// - out: Solution callback, called once for each solution.
-pub fn algox(dlx: &mut Dlx, mut out: impl FnMut(Vec<UInt>)) {
-    trace!("algorithm X start");
-    algox_inner(dlx, &mut Vec::new(), &mut out).unwrap()
+pub fn algox(dlx: &mut Dlx, out: impl FnMut(Vec<UInt>)) {
+    let mut config = AlgoXConfig::default();
+    if cfg!(feature = "stats_by_default") {
+        config.stats = Some(AlgoXStats::default());
+    }
+    algox_config(dlx, &mut config, out);
 }
 
-fn algox_inner<F>(dlx: &mut Dlx, solution: &mut Vec<usize>, out: &mut F) -> Result<(), XError>
+pub fn algox_config(dlx: &mut Dlx, config: &mut AlgoXConfig, mut out: impl FnMut(Vec<UInt>)) {
+    trace!("Algorithm X start");
+    algox_inner(dlx, &mut Vec::new(), config, &mut out).unwrap();
+    if cfg!(feature = "stats") {
+        eprintln!("{:#?}", config.stats);
+    }
+}
+
+macro_rules! stat {
+    ($c:expr, $field:ident, $($t:tt)*) => {
+        if cfg!(feature = "stats") {
+            if let Some(ref mut st) = $c.stats {
+                st . $field $($t)*;
+            }
+        }
+    }
+}
+
+fn algox_inner<F>(dlx: &mut Dlx, solution: &mut Vec<usize>, config: &mut AlgoXConfig, out: &mut F)
+    -> Result<(), XError>
 where
     F: FnMut(Vec<UInt>)
 {
@@ -539,6 +574,7 @@ where
 
     6. Repeat this algorithm recursively on the reduced matrix A.
     */
+    stat!(config, calls, += 1);
     trace!("Enter algo X with exploring from solution {:?}", solution);
     if_trace!(dlx.format());
 
@@ -578,6 +614,8 @@ where
 
     // cover column
     dlx.cover(col_index);
+    stat!(config, cover, += 1);
+
     // now cover other columns sharing a one with this one
     let mut col_iter = dlx.walk_from(col_index);
     while let Some(col_i) = col_iter.next(dlx, Down) {
@@ -592,12 +630,13 @@ where
             //trace!("walked to col_i={}, row_j={}", col_i, row_j);
             if let Ok(chead) = dlx.col_head_of(row_j) {
                 dlx.cover(chead);
+                stat!(config, cover, += 1);
             }
         }
 
         // 6. Repeat this algorithm recursively on the reduced matrix A.
         trace!("Recurse!");
-        algox_inner(dlx, solution, out)?;
+        algox_inner(dlx, solution, config, out)?;
 
         let _ = solution.pop();
         trace!("solution {:?}", solution);
