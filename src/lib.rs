@@ -3,6 +3,9 @@
 macro_rules! trace {
     ($($t:tt)*) => { eprintln!($($t)*) }
 }
+macro_rules! if_trace {
+    ($($t:tt)*) => { $($t)* }
+}
 
 use std::fmt;
 use std::convert::TryFrom;
@@ -108,6 +111,7 @@ impl<T> Node<T> {
 }
 
 pub type UInt = u32;
+pub type Int = i32;
 
 #[derive(Debug, Clone)]
 pub struct Dlx {
@@ -125,11 +129,13 @@ pub struct Dlx {
 
 #[derive(Debug, Copy, Clone)]
 enum Point {
+    /// Alive count in header
     Head(UInt),
     /// Column with alive count in header
     Column(UInt),
-    /// Row with alive count in header
+    /// With row number
     Row(UInt),
+    /// With column number
     Body(UInt),
 }
 
@@ -155,10 +161,11 @@ fn enumerate<T>(it: impl IntoIterator<Item=T>) -> impl Iterator<Item=(usize, T)>
     it.into_iter().enumerate()
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DlxError {
     InvalidRow(&'static str),
     InvalidInput(&'static str),
+    HeadHasNoColumn,
 }
 
 impl Dlx {
@@ -210,7 +217,7 @@ impl Dlx {
 
     pub(crate) fn walk_from(&self, index: Index) -> Walker {
         Walker {
-            index: index,
+            index,
             start: index,
         }
     }
@@ -219,13 +226,31 @@ impl Dlx {
         let mut i = index;
         loop {
             i = self.nodes[i].get(Up);
-            if matches!(self.nodes[i].value, Point::Column(_) | Point::Head(_)) {
+            if matches!(self.nodes[i].value, Point::Column(_)) {
                 return Ok(i);
+            }
+            if i == 0 {
+                return Err(DlxError::HeadHasNoColumn);
             }
             if i == index {
                 panic!("Loop for index {}", i);
             }
         }
+    }
+
+    pub(crate) fn modify_col_head_of(&mut self, index: Index, incr: Int) {
+        let c = self.get_col_head_of(index).unwrap();
+        let v = self.nodes[c].value.value_mut();
+        *v = (*v as Int + incr) as UInt;
+    }
+
+    pub(crate) fn get_col_head_of(&self, index: Index) -> Result<Index, DlxError> {
+        let col_head = match self.nodes[index].value {
+            Point::Body(c) => self.column_head(c),
+            Point::Row(_) => self.head(),
+            _otherwise => return Err(DlxError::InvalidRow("Expected body point")),
+        };
+        Ok(col_head)
     }
 
     pub(crate) fn row_head_of(&self, index: Index) -> Result<Index, DlxError> {
@@ -238,6 +263,13 @@ impl Dlx {
             if i == index {
                 panic!("Loop for index {}", i);
             }
+        }
+    }
+
+    pub(crate) fn row_number_of(&self, index: Index) -> Result<UInt, DlxError> {
+        match self.nodes[self.row_head_of(index)?].value {
+            Point::Row(n) => Ok(n),
+            _otherwise => Err(DlxError::InvalidRow("not a row")),
         }
     }
 
@@ -279,7 +311,7 @@ impl Dlx {
                 return Err(DlxError::InvalidRow("row larger than column count"));
             }
             max_seen = Some(r);
-            let mut body_node = Node::new(Point::Body(row_number));
+            let mut body_node = Node::new(Point::Body(r));
             let index = self.nodes.len();
             self.nodes.push(body_node);
             self.append_to_column(r, index);
@@ -332,20 +364,54 @@ impl Dlx {
         self.nodes[xr].set(left, x);
     }
 
-    pub(crate) fn remove_row(&mut self, index: Index) {
-        let delete_row_head = self.row_head_of(index).unwrap();
-        assert_ne!(delete_row_head, 0, "Can't delete the column head row");
-        trace!("Remove row {} {:?}", delete_row_head, self.nodes[delete_row_head].value);
-        // now delete this row
-        let mut cur = delete_row_head;
-        loop {
-            let cur = self.nodes[cur].get(Next);
-            self.remove(cur, Next);
-            self.remove(cur, Down);
-            let this_column_head = self.col_head_of(cur).unwrap();
-            *self.nodes[this_column_head].value.value_mut() -= 1;
-            if cur == delete_row_head { break; }
+    pub(crate) fn cover(&mut self, col_head: Index) {
+        // cover column
+        //
+        // start from column head c
+        // column head c unlinked in Prev/Next
+        // step Down in rows to i
+        //   Go Next in row and unlink in Up/Down
+        //   (Not unlinking i itself)
+        //   Decrement column's count
+        debug_assert_eq!(self.col_head_of(col_head), Ok(col_head), "Not a column head");
+        debug_assert_ne!(col_head, 0, "Can't cover the head node");
+        trace!("cover column {}", col_head);
+
+        let c = col_head;
+        self.remove(c, Next);
+        let mut rows = self.walk_from(c);
+        while let Some(row_i) = rows.next(self, Down) {
+            let mut row_i_walk = self.walk_from(row_i);
+            while let Some(row_i_j) = row_i_walk.next(self, Next) {
+                self.remove(row_i_j, Down);
+                self.modify_col_head_of(row_i_j, -1);
+            }
         }
+        if_trace!(self.format());
+    }
+
+    pub(crate) fn uncover(&mut self, col_head: Index) {
+        // uncover column
+        //
+        // start from column head c
+        // step Up in rows to i
+        //   Go Prev in row and unlink in Up/Down
+        //   (Not unlinking i itself)
+        //   Increment column's count
+        // column head c restored in Prev/Next
+        debug_assert_eq!(self.col_head_of(col_head), Ok(col_head), "Not a column head");
+        trace!("uncover column {}", col_head);
+
+        let c = col_head;
+        let mut rows = self.walk_from(c);
+        while let Some(row_i) = rows.next(self, Down.opp()) {
+            let mut row_i_walk = self.walk_from(row_i);
+            while let Some(row_i_j) = row_i_walk.next(self, Next.opp()) {
+                self.restore(row_i_j, Down);
+                self.modify_col_head_of(row_i_j, 1);
+            }
+        }
+        self.restore(c, Next);
     }
 
     pub(crate) fn format(&self) {
@@ -366,7 +432,7 @@ impl Dlx {
             eprint!("{:?} ", self.nodes[row_head].value);
             let mut col = self.walk_from(row_head);
             while let Some(block) = col.next(self, Next) {
-                let col_head = self.col_head_of(block).unwrap();
+                let col_head = self.nodes[block].value.value();
                 eprint!("{:3}, ", col_head);
             }
             eprintln!();
@@ -456,34 +522,35 @@ fn algox_inner(dlx: &mut Dlx) -> Result<(), XError> {
         trace!("Selected col_index = {}", col_index);
 
         // 3. Explore the rows in the chosen column
-        
-        let mut col_c_down = dlx.walk_from(col_index);
-        while let Some(col_i) = col_c_down.next(dlx, Down) {
-            let row_number = dlx.nodes[col_i].value.value();
-            solution.push(row_number);
-            trace!("Exploring in block {}, row {}, solution {:?}", col_i, row_number, solution);
 
-            // now, all rows that share a one (in columns) with this row need to be deleted.
-            // and all columns where this row has a one need to be deleted
-            let row_head_i = dlx.row_head_of(col_i).unwrap();
-            trace!("Row head {}", row_head_i);
-
-            let mut row_i = dlx.walk_from(row_head_i);
-            while let Some(row_i_j) = row_i.next(dlx, Next) {
-                // in the current column, delete rows that share a one
-                trace!("Walk from {}", row_i_j);
-                let mut rows = dlx.walk_from(row_i_j);
-                while let Some(index) = rows.next(dlx, Down) {
-                    let delete_row_head = dlx.row_head_of(index).unwrap();
-                    if delete_row_head == 0 {
-                        continue;
-                    }
-                    dlx.remove_row(delete_row_head);
+        // cover column
+        dlx.cover(col_index);
+        // now cover other columns sharing a one with this one
+        let mut col_iter = dlx.walk_from(col_index);
+        while let Some(col_i) = col_iter.next(dlx, Down) {
+            solution.push(col_i);
+            trace!("solution {:?}", solution);
+            let mut row_iter = dlx.walk_from(col_i);
+            while let Some(row_j) = row_iter.next(dlx, Next) {
+                //trace!("walked to col_i={}, row_j={}", col_i, row_j);
+                if let Ok(chead) = dlx.col_head_of(row_j) {
+                    dlx.cover(chead);
                 }
             }
-            dlx.remove_row(row_head_i);
-            break;
+            trace!("Recurse!");
+            if_trace!(dlx.format());
+
+            let _ = solution.pop();
+            trace!("solution {:?}", solution);
+
+            let mut row_iter = dlx.walk_from(col_i);
+            while let Some(row_j) = row_iter.next(dlx, Next.opp()) {
+                if let Ok(chead) = dlx.col_head_of(row_j) {
+                    dlx.uncover(chead);
+                }
+            }
         }
+        dlx.uncover(col_index);
 
         break;
     }
@@ -527,6 +594,29 @@ mod tests {
         dlx.append_row([3, 5, 6]).unwrap();
         dlx.append_row([2, 3, 6, 7]).unwrap();
         dlx.append_row([2, 7]).unwrap();
+        println!("{:#?}", dlx);
+        dlx.format();
+        algox(&mut dlx).unwrap();
+        dlx.format();
+    }
+
+    #[test]
+    fn dlx_paper_example() {
+        /*
+        a = {3, 5, 6};
+        b = {1, 4, 7};
+        c = {2, 3, 6};
+        d = {1, 4};
+        e = {2, 7}; and
+        f = {4, 5, 7}.
+        */
+        let mut dlx = Dlx::new(7);
+        dlx.append_row([3, 5, 6]).unwrap();
+        dlx.append_row([1, 4, 7]).unwrap();
+        dlx.append_row([2, 3, 6]).unwrap();
+        dlx.append_row([1, 4]).unwrap();
+        dlx.append_row([2, 7]).unwrap();
+        dlx.append_row([4, 5, 7]).unwrap();
         println!("{:#?}", dlx);
         dlx.format();
         algox(&mut dlx).unwrap();
