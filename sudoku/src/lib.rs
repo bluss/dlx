@@ -375,6 +375,15 @@ mod tests {
         }
     }
 
+    macro_rules! test_solve {
+        ($input:expr, $($answer:expr),*) => {
+            {
+                test_solve($input, &[ $( parse($answer).unwrap().to_sudoku() ),* ]);
+            }
+        }
+    }
+
+
     #[test]
     fn test_4x4_multi1() {
         let v = parse("
@@ -398,8 +407,54 @@ mod tests {
     }
 
     #[test]
-    fn test_9x9_easy() {
-        let v = parse("
+    fn test_4x4_multi2() {
+        test_solve! {
+            "
+            1 2 . . 
+            3 4 1 2
+            . 1 . .
+            . 3 . .
+            "
+            ,
+            "
+            1 2 3 4 
+            3 4 1 2 
+            2 1 4 3 
+            4 3 2 1
+            ",
+            "
+            1 2 3 4 
+            3 4 1 2 
+            4 1 2 3 
+            2 3 4 1
+            ",
+            "
+            1 2 4 3 
+            3 4 1 2 
+            2 1 3 4 
+            4 3 2 1
+            "
+        }
+    }
+
+    fn test_solve(input: &str, solution_answers: &[Sudoku]) {
+        let s_input = parse(input).unwrap();
+        let mut problem = create_problem(&s_input).into_dlx();
+        let mut solutions = Vec::new();
+        problem.solve_all(|s| solutions.push(s));
+        println!("{}", s_input.to_sudoku());
+        for soln in &solutions {
+            println!("{}", soln);
+            assert!(solution_answers.iter().any(|elt| *elt == *soln),
+                "Solution {} does not match answer", soln);
+        }
+        assert_eq!(solutions.len(), solution_answers.len(), "Wrong number of solutions");
+    }
+
+    #[test]
+    fn test_9x9_1() {
+        test_solve! {
+"
  +-------+-------+-------+  
  | . . . | . 3 . | . . . |  
  | 7 . 5 | 9 . . | . . 2 |  
@@ -413,16 +468,19 @@ mod tests {
  | . . 8 | . . 2 | 9 . . |  
  | . . . | . 9 . | 6 2 . |  
  +-------+-------+-------+ 
-        ").unwrap();
-        let mut p = create_problem(&v).into_dlx();
-        let mut solution = None;
-        p.dlx.format(true);
-        algox(&mut p.dlx, |s| solution = Some(s.get()));
-        println!("{:?}", solution);
-        assert!(solution.is_some());
-        if let Some(s) = &solution {
-            println!("{}", v.to_sudoku());
-            println!("{}", p.to_sudoku(&*s));
+",
+"
+8 4 6 2 3 7 1 9 5
+7 1 5 9 6 4 8 3 2
+9 3 2 8 5 1 4 7 6
+6 5 1 7 4 9 2 8 3
+2 9 7 3 8 6 5 1 4
+4 8 3 1 2 5 7 6 9
+5 2 9 6 7 8 3 4 1
+3 6 8 4 1 2 9 5 7
+1 7 4 5 9 3 6 2 8
+"
         }
     }
+
 }
