@@ -39,6 +39,11 @@ pub(crate) enum Direction {
 use Direction::*;
 
 impl Direction {
+    /// Get opposite direction.
+    ///
+    /// Opposites:
+    /// - Prev and Next
+    /// - Up and Down
     #[inline(always)]
     fn opp(self) -> Direction {
         match self {
