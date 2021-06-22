@@ -102,7 +102,6 @@ macro_rules! trace {
 
 /// Universe integer type
 pub type UInt = u32;
-type Int = i32;
 
 /// Dancing Links structure
 ///
@@ -207,11 +206,6 @@ pub enum DlxError {
     InvalidColumnZero,
 }
 
-#[derive(Clone, Debug)]
-enum InternalDlxError {
-    Error(&'static &'static str),
-}
-
 impl Dlx {
     /// Create a new Dlx with the universe of points in 1..=universe
     pub fn new(universe: UInt) -> Self {
@@ -262,11 +256,6 @@ impl Dlx {
         &self.nodes[0]
     }
 
-    fn column_head(&self, col: UInt) -> Index {
-        debug_assert!(col <= self.columns);
-        col as Index
-    }
-
     /// Create a borrowless traversal state that can walk the linked lists.
     ///
     /// The walk finishes when the starting point is reached (the starting point is not emitted
@@ -280,18 +269,18 @@ impl Dlx {
     }
 
     /// Get the column head for row item `index`
-    pub(crate) fn col_head_of(&self, index: Index) -> Result<Index, InternalDlxError> {
-        let col_head = match self.nodes[index].value {
-            Point::Body(c) => self.column_head(c),
-            _otherwise => return Err(InternalDlxError::Error(&"Expected body point")),
-        };
-        Ok(col_head)
+    ///
+    /// `index` must be a row item.
+    pub(crate) fn get_column_head_of(&self, index: Index) -> Index {
+        debug_assert!(index > self.columns as Index, "Expected row item index, got {}", index);
+        self.get_value(index) as Index
     }
 
-    pub(crate) fn modify_col_head_of(&mut self, index: Index, incr: Int) {
-        let c = self.col_head_of(index).unwrap();
-        let v = self.nodes[c].value.value_mut();
-        *v = (*v as Int + incr) as UInt;
+    /// Get the mutable value of the row item's column head
+    pub(crate) fn column_head_value_mut(&mut self, index: Index) -> &mut UInt {
+        match self.get_column_head_of(index) {
+            chead => self.nodes[chead].value.value_mut()
+        }
     }
 
     fn append_to_column(&mut self, col: UInt, new_index: Index) {
@@ -456,7 +445,7 @@ impl Dlx {
             let mut row_i_walk = self.walk_from(row_i);
             while let Some(row_i_j) = row_i_walk.next(self, Next) {
                 self.remove(row_i_j, Down);
-                self.modify_col_head_of(row_i_j, -1);
+                *self.column_head_value_mut(row_i_j) -= 1;
             }
         }
     }
@@ -482,7 +471,7 @@ impl Dlx {
             let mut row_i_walk = self.walk_from(row_i);
             while let Some(row_i_j) = row_i_walk.next(self, Next.opp()) {
                 self.restore(row_i_j, Down);
-                self.modify_col_head_of(row_i_j, 1);
+                *self.column_head_value_mut(row_i_j) += 1;
             }
         }
         self.restore(c, Next);
@@ -740,10 +729,8 @@ where
         // 5. Cover each column
         let mut row_iter = dlx.walk_from(col_i);
         while let Some(row_j) = row_iter.next(dlx, Next) {
-            if let Ok(chead) = dlx.col_head_of(row_j) {
-                dlx.cover(chead);
-                stat!(config.cover += 1);
-            }
+            dlx.cover(dlx.get_column_head_of(row_j));
+            stat!(config.cover += 1);
         }
 
         // 6. Repeat this algorithm recursively on the reduced matrix A.
@@ -754,9 +741,7 @@ where
 
         let mut row_iter = dlx.walk_from(col_i);
         while let Some(row_j) = row_iter.next(dlx, Next.opp()) {
-            if let Ok(chead) = dlx.col_head_of(row_j) {
-                dlx.uncover(chead);
-            }
+            dlx.uncover(dlx.get_column_head_of(row_j));
         }
 
         if status.is_err() {
