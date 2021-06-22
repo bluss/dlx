@@ -150,6 +150,7 @@ struct SudokuProblem {
     subsets: Vec<Vec<UInt>>,
     /// Subset data: RxCy#z: Row x, Col y filled with z.
     subset_data: Vec<[UInt; 3]>,
+    columns: UInt,
 }
 
 #[derive(Clone, Debug)]
@@ -233,15 +234,18 @@ fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
         sudoku_size: nu,
         subsets,
         subset_data,
+        columns: nu * nu * 4,
     }
 }
 
 impl SudokuProblem {
-    fn into_dlx(self) -> SudokuProblemDlx {
-        // TODO: Optimize by removing constraints and subsets which are fixed (only 1 subset fill)
+    fn optimize(mut self) -> Self {
+        self
+    }
 
+    fn into_dlx(self) -> SudokuProblemDlx {
         let nu = self.sudoku_size;
-        let mut dlx = Dlx::new(nu * nu * 4);
+        let mut dlx = Dlx::new(self.columns);
         for subset in self.subsets {
             dlx.append_row(subset).unwrap();
         }
