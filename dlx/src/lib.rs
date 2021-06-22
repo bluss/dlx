@@ -26,7 +26,6 @@ macro_rules! if_trace {
 
 use std::cmp::Ordering;
 use std::fmt;
-use std::convert::TryFrom;
 use std::iter::repeat;
 
 type Index = usize;
@@ -54,19 +53,6 @@ impl Direction {
             Next => Prev,
             Up => Down,
             Down => Up,
-        }
-    }
-}
-
-impl TryFrom<usize> for Direction {
-    type Error = ();
-    fn try_from(x: usize) -> Result<Self, Self::Error> {
-        match x {
-            0 => Ok(Prev),
-            1 => Ok(Next),
-            2 => Ok(Up),
-            3 => Ok(Down),
-            _ => Err(()),
         }
     }
 }
