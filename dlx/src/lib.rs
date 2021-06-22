@@ -66,20 +66,15 @@ pub(crate) struct Node<T> {
     pub(crate) value: T,
 }
 
-macro_rules! lfmt {
-    ($x:expr) => {
-        if $x == !0 { -1 } else { $x as isize }
-    }
-}
-
-impl<T> fmt::Debug for Node<T> where T: fmt::Debug
-{
+impl<T> fmt::Debug for Node<T> where T: fmt::Debug {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct(stringify!(Node))
-            .field(stringify!(link), &format_args!("[{}, {}; {}, {}]",
-                lfmt!(self.link[0]), lfmt!(self.link[1]), lfmt!(self.link[2]), lfmt!(self.link[3])))
-            .field(stringify!(value), &format_args!("{:?}", self.value))
-            .finish()
+        // avoid "pretty" debug
+        // link as isize so that !0 shows as -1.
+        write!(f, "{} {{ {}: [{}, {}; {}, {}], {}: {} }}",
+            stringify!(Node), stringify!(link),
+            self.link[0] as isize, self.link[1] as isize,
+            self.link[2] as isize, self.link[3] as isize,
+            stringify!(value), &format_args!("{:?}", self.value))
     }
 }
 
