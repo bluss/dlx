@@ -296,30 +296,48 @@ impl Dlx {
         self.nodes[new_index].set(Down, head_index);
     }
 
+    /// Append a row (a subset) to the Dlx
+    ///
+    /// The items of the row use one-based indexing and must be in ascending order;
+    /// the items must be in 1..=universe.
     pub fn append_row(&mut self, row: impl IntoIterator<Item=UInt>) -> Result<(), DlxError> {
+        // try creating nodes for all items
         let start_index = self.nodes.len();
-        let mut max_seen = None;
-        for r in row {
-            if let Some(ms) = max_seen {
-                if ms >= r {
-                    return Err(DlxError::InvalidRow("invalid order"));
+        let try_append = (|| {
+            let mut max_seen = None;
+            for r in row {
+                if let Some(ms) = max_seen {
+                    if ms >= r {
+                        return Err(DlxError::InvalidRow("invalid order"));
+                    }
                 }
+                if r == 0 {
+                    return Err(DlxError::InvalidRow("invalid column zero"));
+                }
+                if r > self.columns {
+                    return Err(DlxError::InvalidRow("row larger than column count"));
+                }
+                max_seen = Some(r);
+                let body_node = Node::new(Point::Body(r));
+                self.nodes.push(body_node);
             }
-            if r == 0 {
-                return Err(DlxError::InvalidRow("invalid column zero"));
+
+            if let None = max_seen {
+                return Err(DlxError::InvalidRow("must not be empty"));
             }
-            if r > self.columns {
-                return Err(DlxError::InvalidRow("row larger than column count"));
-            }
-            max_seen = Some(r);
-            let body_node = Node::new(Point::Body(r));
-            let index = self.nodes.len();
-            self.nodes.push(body_node);
-            self.append_to_column(r, index);
+            Ok(())
+        })();
+
+        if let Err(_) = try_append {
+            // roll back changes on error (only changes are .push() calls so far)
+            self.nodes.truncate(start_index);
+            return try_append;
         }
 
-        if let None = max_seen {
-            return Err(DlxError::InvalidRow("must not be empty"));
+        // after error checks,
+        // append new items to each column
+        for index in start_index..self.nodes.len() {
+            self.append_to_column(self.nodes[index].value.value(), index);
         }
 
         // now link prev-next axis
@@ -334,6 +352,15 @@ impl Dlx {
         self.row_table.push(start_index);
 
         Ok(())
+    }
+
+    pub(crate) fn assert_links(&self) {
+        for (node_i, node) in enumerate(&self.nodes) {
+            for &i in &node.link {
+                assert_ne!(i, !0, "Uninitialized link {} for node {}", i, node_i);
+                assert!(i < self.nodes.len(), "Out of bounds link {} for node {}", i, node_i);
+            }
+        }
     }
 
     /// Get row index for node index
@@ -777,6 +804,7 @@ mod tests {
         let err = dlx.append_row([1, 3]);
         assert!(err.is_err());
         assert_eq!(dlx.rows, 1);
+        dlx.assert_links();
         println!("{:#?}", dlx);
         dlx.format();
     }
