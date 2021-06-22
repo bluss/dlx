@@ -562,6 +562,7 @@ where
             if count < min {
                 min = count;
                 col_index = index;
+                if min == 0 { break; } // found a minimum
             }
         }
 
