@@ -346,7 +346,7 @@ mod tests {
         let mut p = create_problem(&v).into_dlx();
         println!("{:?}", p);
         let mut solution = None;
-        p.dlx.format();
+        p.dlx.format(true);
         algox(&mut p.dlx, |s| solution = Some(s));
         println!("{:?}", solution);
         assert!(solution.is_some());
@@ -374,7 +374,7 @@ mod tests {
         let mut p = create_problem(&v).into_dlx();
         println!("{:?}", p);
         let mut solutions = Vec::new();
-        p.dlx.format();
+        p.dlx.format(true);
         algox(&mut p.dlx, |s| solutions.push(s));
         println!("{:?}", solutions);
         assert_eq!(solutions.len(), 2);
@@ -403,7 +403,7 @@ mod tests {
         ").unwrap();
         let mut p = create_problem(&v).into_dlx();
         let mut solution = None;
-        p.dlx.format();
+        p.dlx.format(true);
         algox(&mut p.dlx, |s| solution = Some(s));
         println!("{:?}", solution);
         assert!(solution.is_some());

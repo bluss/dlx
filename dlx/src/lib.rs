@@ -424,7 +424,7 @@ impl Dlx {
                 self.modify_col_head_of(row_i_j, -1);
             }
         }
-        //if_trace!(self.format());
+        //if_trace!(self.format(true));
     }
 
     /// Uncover column c
@@ -455,7 +455,7 @@ impl Dlx {
     }
 
     /// Print a debug representation of the Dlx
-    pub fn format(&self) {
+    pub fn format(&self, include_rows: bool) {
         let n_blocks = self.nodes.len().saturating_sub(1 + self.columns as usize);
         eprintln!("Dlx columns={}, rows={}, nodes={} (blocks={})",
             self.columns, self.rows, self.nodes.len(), n_blocks);
@@ -474,7 +474,10 @@ impl Dlx {
             }
         }
         eprintln!();
-        return;
+
+        if !include_rows {
+            return;
+        }
 
         for row_head in visible_rows.iter().filter_map(|x| x.as_ref().copied()) {
             let index = self.row_index_of(row_head);
@@ -578,7 +581,7 @@ where
     */
     stat!(config, calls, += 1);
     trace!("Enter algo X with exploring from partial_solution {:?}", partial_solution);
-    if_trace!(dlx.format());
+    if_trace!(dlx.format(false));
 
     // 1. is the matrix empty
     let empty = dlx.head_node().get(Next) == dlx.head();
@@ -671,7 +674,7 @@ mod tests {
         assert_eq!(dlx.column_count(1), 1);
         assert_eq!(dlx.column_count(2), 2);
         assert_eq!(dlx.column_count(3), 2);
-        dlx.format();
+        dlx.format(true);
     }
 
     #[test]
@@ -694,10 +697,10 @@ mod tests {
         dlx.append_row([2, 3, 6, 7]).unwrap();
         dlx.append_row([2, 7]).unwrap();
         println!("{:#?}", dlx);
-        dlx.format();
+        dlx.format(true);
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s));
-        dlx.format();
+        dlx.format(true);
         assert_eq!(solution, Some(vec![1, 3, 5]), "solution mismatch");
     }
 
@@ -725,10 +728,10 @@ mod tests {
         dlx.append_row([2, 7]).unwrap();
         dlx.append_row([4, 5, 7]).unwrap();
         println!("{:#?}", dlx);
-        dlx.format();
+        dlx.format(true);
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s));
-        dlx.format();
+        dlx.format(true);
         assert_eq!(solution, Some(vec![3, 0, 4]), "solution mismatch");
     }
 
@@ -751,10 +754,10 @@ mod tests {
         dlx.append_row([2, 7]).unwrap();
         dlx.append_row([4, 5, 7]).unwrap();
         println!("{:#?}", dlx);
-        dlx.format();
+        dlx.format(true);
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s));
-        dlx.format();
+        dlx.format(true);
         assert_eq!(solution, None, "solution mismatch");
     }
 
@@ -762,10 +765,10 @@ mod tests {
     fn dlx_size0_triv() {
         let mut dlx = Dlx::new(0);
         println!("{:#?}", dlx);
-        dlx.format();
+        dlx.format(true);
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s));
-        dlx.format();
+        dlx.format(true);
         assert_eq!(solution, Some(vec![]), "solution mismatch");
     }
 
@@ -780,10 +783,10 @@ mod tests {
         dlx.append_row([1]).unwrap();
         dlx.append_row([2]).unwrap();
         println!("{:#?}", dlx);
-        dlx.format();
+        dlx.format(true);
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s));
-        dlx.format();
+        dlx.format(true);
         assert_eq!(solution, Some(vec![0, 1]), "solution mismatch");
     }
 
@@ -798,10 +801,10 @@ mod tests {
         dlx.append_row([1]).unwrap();
         dlx.append_row([1]).unwrap();
         println!("{:#?}", dlx);
-        dlx.format();
+        dlx.format(true);
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s));
-        dlx.format();
+        dlx.format(true);
         assert_eq!(solution, None, "solution mismatch");
     }
 
@@ -816,7 +819,7 @@ mod tests {
         assert_eq!(dlx.rows, 1);
         dlx.assert_links();
         println!("{:#?}", dlx);
-        dlx.format();
+        dlx.format(true);
     }
 
     #[test]
