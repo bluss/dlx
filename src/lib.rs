@@ -118,8 +118,8 @@ pub type Int = i32;
 pub struct Dlx {
     /// Node layout in DLX:
     /// [ Head ]    [ Columns ... ]
-    /// [ Row Head] [ Row ... ]
-    /// [ Row Head] [ Row ... ]
+    /// [ Row items ... ]
+    /// [ Row items ... ]
     /// ... etc.
     ///
     /// Doubly linked list in two dimensions: Prev, Next and Up, Down.
@@ -130,15 +130,17 @@ pub struct Dlx {
     row_table: Vec<Index>,
 }
 
+/// Value stored inside the node.
+///
+/// The variant indentifies the kind of node,
+/// and the number is used as indicated.
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum Point {
-    /// Alive count in header
+    /// Singleton head node before all columns; value ignored.
     Head(UInt),
-    /// Column with alive count in header
+    /// Column head with counter for items alive in the column
     Column(UInt),
-    /// With row number
-    Row(UInt),
-    /// With column number
+    /// Row body item, with column number for reference to column header
     Body(UInt),
 }
 
@@ -146,16 +148,23 @@ impl Point {
     #[inline]
     pub(crate) fn value(&self) -> UInt {
         use Point::*;
+
         match *self {
-            Head(x) | Column(x) | Row(x) | Body(x) => x
+            Head(x) | Column(x) | Body(x) => x
         }
     }
 
     #[inline]
     pub(crate) fn value_mut(&mut self) -> &mut UInt {
         use Point::*;
+
         match self {
-            Head(x) | Column(x) | Row(x) | Body(x) => x
+            Head(_) | Body(_) => debug_assert!(false, "Possible error: no need to modfiy Head, Body"),
+            Column(_) => {}
+        }
+
+        match self {
+            Head(x) | Column(x) | Body(x) => x
         }
     }
 }
@@ -252,40 +261,15 @@ impl Dlx {
     pub(crate) fn get_col_head_of(&self, index: Index) -> Result<Index, DlxError> {
         let col_head = match self.nodes[index].value {
             Point::Body(c) => self.column_head(c),
-            Point::Row(_) => self.head(),
             _otherwise => return Err(DlxError::InvalidRow("Expected body point")),
         };
         Ok(col_head)
     }
 
-    pub(crate) fn row_head_of(&self, index: Index) -> Result<Index, DlxError> {
-        let mut i = index;
-        loop {
-            i = self.nodes[i].get(Prev);
-            if matches!(self.nodes[i].value, Point::Row(_) | Point::Head(_)) {
-                return Ok(i);
-            }
-            if i == index {
-                panic!("Loop for index {}", i);
-            }
-        }
-    }
-
-    pub(crate) fn row_number_of(&self, index: Index) -> Result<UInt, DlxError> {
-        match self.nodes[self.row_head_of(index)?].value {
-            Point::Row(n) => Ok(n),
-            _otherwise => Err(DlxError::InvalidRow("not a row")),
-        }
-    }
-
     fn append_to_column(&mut self, col: UInt, new_index: Index) {
-        debug_assert!(col <= self.columns, "invalid column {}", col);
+        debug_assert!(col <= self.columns && col != 0, "invalid column {}", col);
         debug_assert!(new_index < self.nodes.len(), "invalid index {}", new_index);
-        if col == 0 {
-            debug_assert!(matches!(self.nodes[new_index].value, Point::Row(_)));
-        } else {
-            debug_assert!(matches!(self.nodes[new_index].value, Point::Body(_)));
-        }
+        debug_assert!(matches!(self.nodes[new_index].value, Point::Body(_)));
         let head_index = col as Index;
         let head = &mut self.nodes[head_index];
         let old_end = head.get(Up);
