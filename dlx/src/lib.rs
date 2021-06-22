@@ -293,12 +293,14 @@ impl Dlx {
         debug_assert!(matches!(self.nodes[new_index].value, Point::Body(_)));
         let head_index = col as Index;
         let head = &mut self.nodes[head_index];
-        let old_end = head.get(Up);
+
+        let former_end = head.get(Up);
         head.set(Up, new_index);
         *head.value.value_mut() += 1;
-        self.nodes[old_end].set(Down, new_index);
-        self.nodes[new_index].set(Up, old_end);
-        self.nodes[new_index].set(Down, head_index);
+        self.nodes[former_end].set(Down, new_index);
+        self.nodes[new_index]
+            .set(Up, former_end)
+            .set(Down, head_index);
     }
 
     /// Append a row (a subset) to the Dlx
