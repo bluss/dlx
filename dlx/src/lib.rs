@@ -260,12 +260,6 @@ impl Dlx {
         col as Index
     }
 
-    #[cfg(test)]
-    fn column_count(&self, col: UInt) -> UInt {
-        assert!(col <= self.columns);
-        self.nodes[self.column_head(col)].value.value()
-    }
-
     /// Create a borrowless traversal state that can walk the linked lists.
     ///
     /// The walk finishes when the starting point is reached (the starting point is not emitted
@@ -757,10 +751,11 @@ mod tests {
         dlx.append_row([2]).unwrap();
         dlx.append_row([2, 3]).unwrap();
         println!("{:#?}", dlx);
-        assert_eq!(dlx.column_count(0), 0);
-        assert_eq!(dlx.column_count(1), 1);
-        assert_eq!(dlx.column_count(2), 2);
-        assert_eq!(dlx.column_count(3), 2);
+        assert_eq!(dlx.get_value(0), 0);
+        assert_eq!(dlx.get_value(1), 1);
+        assert_eq!(dlx.get_value(2), 2);
+        assert_eq!(dlx.get_value(3), 2);
+        dlx.assert_links();
         dlx.format(true);
     }
 
@@ -816,6 +811,7 @@ mod tests {
         dlx.append_row([4, 5, 7]).unwrap();
         println!("{:#?}", dlx);
         dlx.format(true);
+        dlx.assert_links();
         let mut solution = None;
         algox(&mut dlx, |s| solution = Some(s.get()));
         dlx.format(true);
