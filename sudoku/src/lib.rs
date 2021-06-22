@@ -176,8 +176,8 @@ fn all_subsets(sudoku_size: u16, start_index: UInt) -> Vec<Vec<UInt>> {
 #[derive(Clone, Debug)]
 struct SudokuProblem {
     dlx: Dlx,
+    /// Subset data: RxCy#z: Row x, Col y filled with z.
     subset_data: Vec<[UInt; 3]>,
-    subset_names: Vec<String>,
 }
 
 impl SudokuProblem {
@@ -193,11 +193,8 @@ impl SudokuProblem {
 fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
     let n = sudoku.sudoku_size() as usize;
     let nu = sudoku.sudoku_size() as UInt;
-    dbg!(nu);
-    let mut cnames = Vec::<String>::with_capacity(n * n * 4 / 2);
     let mut subsets = Vec::<Vec<UInt>>::new();
     let mut subset_data = Vec::new();
-    let mut subset_names = Vec::<String>::with_capacity(n * n * n / 2);
 
     let sudoku: Vec<_> = sudoku.0.iter().enumerate().map(|(i, &v)| {
         Point {
@@ -250,7 +247,6 @@ fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
                 if cell.value.is_some() && Some(z + 1) != cell.value {
                     continue;
                 }
-                subset_names.push(format!("R{x}C{y}#{z}", x=x + 1, y=y + 1, z=z + 1));
                 subset_data.push([x, y, z]);
                 subsets.push(vec![
                         offset + 0 * cat_offset + x + y * nu,  // RxCy
@@ -271,7 +267,6 @@ fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
     SudokuProblem {
         dlx,
         subset_data,
-        subset_names,
     }
 }
 
