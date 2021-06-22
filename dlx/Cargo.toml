@@ -10,5 +10,5 @@ edition = "2018"
 [features]
 trace = []
 stats = []
-stats_by_default = ["stats"]
+stats_trace = ["stats"]
 default = ["stats"]
