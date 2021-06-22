@@ -49,6 +49,8 @@ impl TryFrom<usize> for Direction {
     }
 }
 
+/// Link node in the Dancing Links structure,
+/// which is linked along two axes - prev/next and up/down.
 #[derive(Copy, Clone, Default, PartialEq)]
 pub(crate) struct Node<T> {
     /// Prev, Next, Up, Down
@@ -74,38 +76,26 @@ impl<T> fmt::Debug for Node<T> where T: fmt::Debug
 }
 
 impl<T> Node<T> {
-    fn new(value: T) -> Self
-    {
+    /// Create a new node from the value.
+    fn new(value: T) -> Self {
         Node {
-            value: value,
-            link: [!0; 4],
+            value,
+            link: [!0; 4], // invalid link values to start with
         }
     }
-    fn prev(&self) -> Index { self.get(Prev) }
-    fn next(&self) -> Index { self.get(Next) }
-    fn set_prev(&mut self, index: Index) -> &mut Self { self.set(Prev, index) }
-    fn set_next(&mut self, index: Index) -> &mut Self { self.set(Next, index) }
 
-    fn up(&self) -> Index { self.get(Up) }
-    fn down(&self) -> Index { self.get(Down) }
-    fn set_up(&mut self, index: Index) -> &mut Self { self.set(Up, index) }
-    fn set_down(&mut self, index: Index) -> &mut Self { self.set(Down, index) }
-
+    /// Get link in the given direction
     fn get(&self, dir: Direction) -> Index {
         self.link[dir as usize]
     }
 
+    /// Set link in the given direction
     fn set(&mut self, dir: Direction, index: Index) -> &mut Self {
         self.link[dir as usize] = index;
         self
     }
 
-    fn self_link(&mut self, dir: Direction, index: Index) -> &mut Self {
-        self.link[dir as usize] = index;
-        self.link[dir.opp() as usize] = index;
-        self
-    }
-
+    /// Assign link in the given direction
     fn assign(&mut self, dir: Direction) -> &mut usize {
         &mut self.link[dir as usize]
     }
@@ -188,13 +178,14 @@ impl Dlx {
         nodes.extend(repeat(Node::new(Point::Column(0))).take(universe as usize));
 
         // link the whole header row in both dimensions
-
         for (index, node) in enumerate(&mut nodes) {
-            node.self_link(Down, index); // self-link in up-down axis
+            // self-link in up-down axis
+            *node.assign(Up) = index;
+            *node.assign(Down) = index;
             let prev_index = if index == 0 { universe as Index } else { index - 1 };
             let next_index = if index == universe as Index { 0 } else { index + 1 };
-            node.set(Prev, prev_index);
-            node.set(Next, next_index);
+            *node.assign(Prev) = prev_index;
+            *node.assign(Next) = next_index;
         }
 
         Dlx {
@@ -338,6 +329,7 @@ impl Dlx {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(crate) fn assert_links(&self) {
         for (node_i, node) in enumerate(&self.nodes) {
             for &i in &node.link {
