@@ -600,7 +600,7 @@ impl AlgoXSolution<'_> {
         self.raw.len()
     }
 
-    /// Return solution as row identifiers
+    /// Return solution as row identifiers (zero-based row indices)
     pub fn get(&self) -> Vec<UInt> {
         self.dlx.solution_to_rows(&self.raw)
     }
@@ -613,6 +613,9 @@ impl AlgoXSolution<'_> {
 /// - dlx: Problem formulation in terms of a dancing links graph
 /// - out: Solution callback, called once for each solution.
 ///
+/// The dlx is mutable, but at the exit of this function, it is always in the same state that
+/// it was on entry.
+///
 /// This version uses the default configuration and emits all solutions.
 pub fn algox(dlx: &mut Dlx, out: impl FnMut(AlgoXSolution<'_>)) {
     let mut config = AlgoXConfig::default();
@@ -624,8 +627,11 @@ pub fn algox(dlx: &mut Dlx, out: impl FnMut(AlgoXSolution<'_>)) {
 /// Implemented using Dancing Links.
 ///
 /// - dlx: Problem formulation in terms of a dancing links graph
-/// - config: Configuration
+/// - config: Configuration and statistics
 /// - out: Solution callback, called once for each solution.
+///
+/// The dlx is mutable, but at the exit of this function, it is always in the same state that
+/// it was on entry.
 pub fn algox_config(dlx: &mut Dlx, config: &mut AlgoXConfig, mut out: impl FnMut(AlgoXSolution<'_>)) {
     trace!("Algorithm X start");
     if cfg!(feature = "stats_trace") && config.stats.is_none() {
@@ -649,6 +655,16 @@ macro_rules! stat {
     }
 }
 
+/// The implementation of algorithm X
+///
+/// The partial_solution is stored as node indexes; only when a solution is found,
+/// will this be converted to row indexes (the actually useful form of solution).
+///
+/// The solver runs through the whole search tree if not interrupted; the XError status is used to
+/// short-circuit and exit as soon as possible if requested.
+///
+/// The Dlx state is always restored in all ways of exiting the solver, meaning that the Dlx will
+/// be unmodified from its starting state once this function returns.
 fn algox_inner<F>(dlx: &mut Dlx, partial_solution: &mut Vec<usize>, config: &mut AlgoXConfig, out: &mut F)
     -> Result<(), XError>
 where
