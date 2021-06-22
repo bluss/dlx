@@ -120,9 +120,17 @@ impl<T> Node<T> {
     }
 }
 
+/// Universe integer type
 pub type UInt = u32;
-pub type Int = i32;
+type Int = i32;
 
+/// Dancing Links structure
+///
+/// This is a “Dancing Links” data structure implementation. The structure
+/// is like a sparse binary matrix and it uses a doubly linked list implementation
+/// in two dimensions.
+///
+/// See Knuth for papers about this structure and about “algorithm X”.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Dlx {
     /// Node layout in DLX:
@@ -183,6 +191,7 @@ fn enumerate<T>(it: impl IntoIterator<Item=T>) -> impl Iterator<Item=(usize, T)>
     it.into_iter().enumerate()
 }
 
+/// Error that can occur in the setup of Dlx.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DlxError {
     InputMustNotBeEmpty,
@@ -569,7 +578,7 @@ pub struct AlgoXStats {
 pub struct AlgoXConfig {
     // TODO: implement this config switch
     pub emit_all: bool,
-    /// If stats are enabled, the are written here if the struct is initialized to Some(_) on entry
+    /// If stats are enabled, they are written here if the struct is initialized to Some(_) on entry
     pub stats: Option<AlgoXStats>,
 }
 
@@ -600,6 +609,8 @@ impl AlgoXSolution<'_> {
 ///
 /// - dlx: Problem formulation in terms of a dancing links graph
 /// - out: Solution callback, called once for each solution.
+///
+/// This version uses the default configuration and emits all solutions.
 pub fn algox(dlx: &mut Dlx, out: impl FnMut(AlgoXSolution<'_>)) {
     let mut config = AlgoXConfig::default();
     if cfg!(feature = "stats_by_default") {
@@ -608,6 +619,13 @@ pub fn algox(dlx: &mut Dlx, out: impl FnMut(AlgoXSolution<'_>)) {
     algox_config(dlx, &mut config, out);
 }
 
+/// Knuth's “Algorithm X”, a constraint satisfaction problem solver for the exact cover problem.
+///
+/// Implemented using Dancing Links.
+///
+/// - dlx: Problem formulation in terms of a dancing links graph
+/// - config: Configuration
+/// - out: Solution callback, called once for each solution.
 pub fn algox_config(dlx: &mut Dlx, config: &mut AlgoXConfig, mut out: impl FnMut(AlgoXSolution<'_>)) {
     trace!("Algorithm X start");
     algox_inner(dlx, &mut Vec::new(), config, &mut out).unwrap();
