@@ -161,6 +161,13 @@ pub struct SudokuProblemDlx {
 }
 
 impl SudokuProblemDlx {
+    /// Get Dlx matrix
+    pub fn dlx(&self) -> &Dlx { &self.dlx }
+
+    /// Get additional info for the Dlx rows: triplets of [Rx, Cy, #z]
+    /// which correspond to row x, column y being filled with number z
+    pub fn dlx_row_info(&self) -> &Dlx { &self.dlx }
+
     /// Given a Dlx solution, convert into a solved Sudoku
     pub fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
         let mut solution_data = solution.iter().map(|&i| self.subset_data[i as usize]).collect::<Vec<_>>();
