@@ -634,6 +634,7 @@ pub fn algox(dlx: &mut Dlx, out: impl FnMut(AlgoXSolution<'_>)) {
 /// it was on entry.
 pub fn algox_config(dlx: &mut Dlx, config: &mut AlgoXConfig, mut out: impl FnMut(AlgoXSolution<'_>)) {
     trace!("Algorithm X start");
+    if_trace!(dlx.format(true));
     if cfg!(feature = "stats_trace") && config.stats.is_none() {
         config.stats = Some(AlgoXStats::default());
     }
@@ -687,15 +688,13 @@ where
     */
     let mut status = Ok(());
     stat!(config.calls += 1);
-    if_trace!(dlx.format(false));
 
     // 1. is the matrix empty
     let empty = dlx.head_node().get(Next) == dlx.head();
     if empty {
         // We have a solution
-        // TODO: pass out a reference to solution here, that the user can choose to resolve or not
         let xsolution = AlgoXSolution { raw: &partial_solution, dlx: &dlx };
-        trace!("==> Valid solution: {:?}", xsolution.raw);
+        trace!("==> Valid solution: {:?} ({:?})", dlx.solution_to_rows(&xsolution.raw), xsolution.raw);
         stat!(config.solutions += 1);
         out(xsolution);
         return if config.stop_at_first { Err(XError::RequestedStop) } else { Ok(()) };
@@ -752,7 +751,6 @@ where
         status = algox_inner(dlx, partial_solution, config, out);
 
         let _ = partial_solution.pop();
-        trace!("partial_solution {:?}", partial_solution);
 
         let mut row_iter = dlx.walk_from(col_i);
         while let Some(row_j) = row_iter.next(dlx, Next.opp()) {
