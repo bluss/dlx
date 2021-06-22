@@ -227,34 +227,19 @@ impl Dlx {
         }
     }
 
+    /// Get the column head for row item `index`
     pub(crate) fn col_head_of(&self, index: Index) -> Result<Index, DlxError> {
-        let mut i = index;
-        loop {
-            i = self.nodes[i].get(Up);
-            if matches!(self.nodes[i].value, Point::Column(_)) {
-                return Ok(i);
-            }
-            if i == 0 {
-                return Err(DlxError::HeadHasNoColumn);
-            }
-            if i == index {
-                panic!("Loop for index {}", i);
-            }
-        }
-    }
-
-    pub(crate) fn modify_col_head_of(&mut self, index: Index, incr: Int) {
-        let c = self.get_col_head_of(index).unwrap();
-        let v = self.nodes[c].value.value_mut();
-        *v = (*v as Int + incr) as UInt;
-    }
-
-    pub(crate) fn get_col_head_of(&self, index: Index) -> Result<Index, DlxError> {
         let col_head = match self.nodes[index].value {
             Point::Body(c) => self.column_head(c),
             _otherwise => return Err(DlxError::InvalidRow("Expected body point")),
         };
         Ok(col_head)
+    }
+
+    pub(crate) fn modify_col_head_of(&mut self, index: Index, incr: Int) {
+        let c = self.col_head_of(index).unwrap();
+        let v = self.nodes[c].value.value_mut();
+        *v = (*v as Int + incr) as UInt;
     }
 
     fn append_to_column(&mut self, col: UInt, new_index: Index) {
@@ -408,8 +393,7 @@ impl Dlx {
         //   Go Next in row and unlink in Up/Down
         //   (Not unlinking i itself)
         //   Decrement column's count
-        debug_assert_eq!(self.col_head_of(col_head), Ok(col_head), "Not a column head");
-        debug_assert_ne!(col_head, 0, "Can't cover the head node");
+        debug_assert!(col_head > 0 && col_head <= self.columns as _, "Not a column head: {}", col_head);
         trace!("cover column {}", col_head);
 
         let c = col_head;
@@ -434,7 +418,7 @@ impl Dlx {
         //   (Not unlinking i itself)
         //   Increment column's count
         // column head c restored in Prev/Next
-        debug_assert_eq!(self.col_head_of(col_head), Ok(col_head), "Not a column head");
+        debug_assert!(col_head > 0 && col_head <= self.columns as _, "Not a column head: {}", col_head);
         trace!("uncover column {}", col_head);
 
         let c = col_head;
