@@ -202,11 +202,13 @@ impl Dlx {
             // self-link in up-down axis
             *node.assign(Up) = index;
             *node.assign(Down) = index;
-            let prev_index = if index == 0 { universe as Index } else { index - 1 };
-            let next_index = if index == universe as Index { 0 } else { index + 1 };
-            *node.assign(Prev) = prev_index;
-            *node.assign(Next) = next_index;
+            *node.assign(Prev) = index.wrapping_sub(1);
+            *node.assign(Next) = index + 1;
         }
+        // fixup begin/end
+        let len = nodes.len();
+        *nodes[0].assign(Prev) = len - 1;
+        *nodes[len - 1].assign(Next) = 0;
 
         Dlx {
             nodes,
