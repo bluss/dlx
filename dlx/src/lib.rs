@@ -25,7 +25,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use std::fmt;
 use std::iter::repeat;
 
-// Direction of list link
+/// Direction of list link
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Direction {
     Prev,
