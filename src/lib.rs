@@ -517,6 +517,12 @@ impl ColumnHeadWalker<'_> {
 #[derive(Clone, Debug)]
 pub enum XError { }
 
+/// Knuth's “Algorithm X”, a constraint satisfaction problem solver for the exact cover problem.
+///
+/// Implemented using Dancing Links.
+///
+/// - dlx: Problem formulation in terms of a dancing links graph
+/// - out: Solution callback, called once for each solution.
 pub fn algox(dlx: &mut Dlx, mut out: impl FnMut(Vec<UInt>)) {
     trace!("algorithm X start");
     algox_inner(dlx, &mut Vec::new(), &mut out).unwrap()
