@@ -256,6 +256,30 @@ impl Dlx {
         &self.nodes[0]
     }
 
+    #[inline]
+    fn head_node_mut(&mut self) -> &mut Node<Point> {
+        &mut self.nodes[0]
+    }
+
+    /// Get the user-defined tag value for this Dlx
+    pub fn tag(&self) -> UInt {
+        match self.head_node().value {
+            Point::Head(v) => v,
+            Point::Column(_) | Point::Body(_) => unreachable!(),
+        }
+    }
+
+    /// Set a user-defined tag value for this Dlx
+    ///
+    /// The tag has no effect for the algorithm, but it can be used to store an integer
+    /// of information about the Dlx.
+    pub fn set_tag(&mut self, tag: UInt) {
+        match self.head_node_mut().value {
+            Point::Head(ref mut v) => *v = tag,
+            Point::Column(_) | Point::Body(_) => unreachable!(),
+        }
+    }
+
     /// Create a borrowless traversal state that can walk the linked lists.
     ///
     /// The walk finishes when the starting point is reached (the starting point is not emitted
@@ -487,7 +511,7 @@ impl Dlx {
 
         let mut headings = self.walk_from(self.head());
         let mut ncols = 0;
-        eprint!("Head  ");
+        eprint!("{:?} ", self.head_node().value);
         while let Some(col_head) = headings.next(self, Next) {
             eprint!("{:4} ", self.nodes[col_head].value.value());
 
@@ -759,12 +783,14 @@ mod tests {
         dlx.append_row([1, 3]).unwrap();
         dlx.append_row([2]).unwrap();
         dlx.append_row([2, 3]).unwrap();
+        dlx.set_tag(1729);
         println!("{:#?}", dlx);
         assert_eq!(dlx.get_value(1), 1);
         assert_eq!(dlx.get_value(2), 2);
         assert_eq!(dlx.get_value(3), 2);
         dlx.assert_links();
         dlx.debug_print();
+        assert_eq!(dlx.tag(), 1729);
     }
 
     #[test]
