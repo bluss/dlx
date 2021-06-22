@@ -614,9 +614,6 @@ impl AlgoXSolution<'_> {
 /// This version uses the default configuration and emits all solutions.
 pub fn algox(dlx: &mut Dlx, out: impl FnMut(AlgoXSolution<'_>)) {
     let mut config = AlgoXConfig::default();
-    if cfg!(feature = "stats_trace") {
-        config.stats = Some(AlgoXStats::default());
-    }
     algox_config(dlx, &mut config, out);
 }
 
@@ -629,6 +626,9 @@ pub fn algox(dlx: &mut Dlx, out: impl FnMut(AlgoXSolution<'_>)) {
 /// - out: Solution callback, called once for each solution.
 pub fn algox_config(dlx: &mut Dlx, config: &mut AlgoXConfig, mut out: impl FnMut(AlgoXSolution<'_>)) {
     trace!("Algorithm X start");
+    if cfg!(feature = "stats_trace") && config.stats.is_none() {
+        config.stats = Some(AlgoXStats::default());
+    }
     let _ = algox_inner(dlx, &mut Vec::new(), config, &mut out);
     if cfg!(feature = "stats_trace") {
         if let Some(stats) = &config.stats {
