@@ -451,7 +451,7 @@ impl Dlx {
 
     /// Print a debug representation of the Dlx
     pub(crate) fn format(&self) {
-        let n_blocks = self.nodes.len().saturating_sub((1 + self.columns + self.rows) as usize);
+        let n_blocks = self.nodes.len().saturating_sub(1 + self.columns as usize);
         eprintln!("Dlx columns={}, rows={}, nodes={} (blocks={})",
             self.columns, self.rows, self.nodes.len(), n_blocks);
 
