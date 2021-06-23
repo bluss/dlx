@@ -208,11 +208,13 @@ impl SudokuProblemDlx {
     ///
     /// The problem is unmodified after the end of this method, and could be solved
     /// the same way again.
-    pub fn solve_first(&mut self, mut out: impl FnMut(Sudoku)) {
+    pub fn solve_first(&mut self) -> Option<Sudoku> {
         let subset_data = &self.subset_data;
         let mut config = dlx::AlgoXConfig::default();
         config.stop_at_first = true;
-        dlx::algox_config(&mut self.dlx, &mut config, |s| out(Self::sudoku(subset_data, &s.get())));
+        let mut solution = None;
+        dlx::algox_config(&mut self.dlx, &mut config, |s| solution = Some(Self::sudoku(subset_data, &s.get())));
+        solution
     }
 }
 
@@ -514,7 +516,7 @@ mod tests {
         let mut problem = sudoku.to_problem().into_dlx();
         let mut solutions = Vec::new();
         if only_first {
-            problem.solve_first(|s| solutions.push(s));
+            if let Some(s) = problem.solve_first() { solutions.push(s) }
         } else {
             problem.solve_all(|s| solutions.push(s));
         }
