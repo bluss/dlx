@@ -80,7 +80,8 @@ fn is_spacer(s: &str) -> bool {
     }
 }
 
-pub fn parse(s: &str) -> Result<Sudoku, ParseError> {
+/// Parse sudoku from multi-line representation
+fn parse(s: &str) -> Result<Sudoku, ParseError> {
     let parts = s.split(char::is_whitespace)
         .filter(|s| !is_spacer(*s) && (s.len() <= 1 || !s.split("").all(is_spacer)))
         .map(|s| if is_blank(s) { (s, Ok(None)) } else { (s, Some(s.parse::<UInt>()).transpose()) })
@@ -228,7 +229,7 @@ impl SudokuProblemDlx {
     }
 }
 
-pub fn create_problem(sudoku: &Sudoku) -> SudokuProblem {
+fn create_problem(sudoku: &Sudoku) -> SudokuProblem {
     let nu = sudoku.sudoku_size();
     let mut subsets = Vec::new();
     let mut subset_data = Vec::new();
@@ -278,10 +279,6 @@ pub fn create_problem(sudoku: &Sudoku) -> SudokuProblem {
 }
 
 impl SudokuProblem {
-    pub fn optimize(self) -> Self {
-        todo!()
-    }
-
     pub fn into_dlx(self) -> SudokuProblemDlx {
         let mut dlx = Dlx::new(self.columns);
         for subset in self.subsets {
@@ -294,17 +291,40 @@ impl SudokuProblem {
             subset_data,
         }
     }
+
+    /// Not yet implemented
+    pub fn optimize(self) -> Self {
+        todo!()
+    }
 }
 
-/// Displayable version of Sudoku. Can be solved or contain placeholders (as zero).
+/// Sudoku. Can be fully solved or contain placeholders (as zero).
+///
+/// Suitable for console output with Display.
 #[derive(Clone, PartialEq)]
 pub struct Sudoku {
     values: Vec<UInt>,
 }
 
 impl Sudoku {
-    pub fn is_solved(&self) -> bool {
-        self.values.iter().all(|elt| *elt != 0)
+    /// Parse Sudoku from multi-line input
+    pub fn parse(input: &str) -> Result<Self, ParseError> {
+        parse(input)
+    }
+
+    /// Return number of filled-in clues in the puzzle
+    pub fn clues(&self) -> usize {
+        self.values.iter().filter(|&&elt| elt != 0).count()
+    }
+
+    /// Return true if there are any placeholders
+    pub fn has_placeholders(&self) -> bool {
+        self.values.iter().any(|&elt| elt == 0)
+    }
+
+    /// Create SudokuProblem description from this sudoku
+    pub fn to_problem(&self) -> SudokuProblem {
+        create_problem(self)
     }
 
     fn sudoku_size(&self) -> UInt {
@@ -352,7 +372,7 @@ mod tests {
 
     #[test]
     fn test_parse() {
-        let v = parse("
+        let v = Sudoku::parse("
         1 . ; 2 3
         2 . ; . .
         4 . ; 1 2
@@ -363,6 +383,9 @@ mod tests {
              2, 0, 0, 0,
              4, 0, 1, 2,
              3, 0, 0, 4]);
+
+        assert!(v.has_placeholders());
+        assert_eq!(v.clues(), 9);
     }
 
     #[test]
@@ -401,7 +424,7 @@ mod tests {
             4 1 3 2
         ").unwrap();
         println!("{:?}", v);
-        let mut p = create_problem(&v).into_dlx();
+        let mut p = v.to_problem().into_dlx();
         println!("{:#?}", p);
         let mut solution = None;
         algox(&mut p.dlx, |s| solution = Some(s.get()));
@@ -418,7 +441,7 @@ mod tests {
             4 . 3 2
         ").unwrap();
         println!("{:?}", v);
-        let mut p = create_problem(&v).into_dlx();
+        let mut p = v.to_problem().into_dlx();
         println!("{:#?}", p);
         let mut solution = None;
         p.dlx.debug_print();
@@ -460,7 +483,7 @@ mod tests {
             4 . . 1
         ").unwrap();
         println!("{:?}", v);
-        let mut p = create_problem(&v).into_dlx();
+        let mut p = v.to_problem().into_dlx();
         println!("{:#?}", p);
         let mut solutions = Vec::new();
         p.dlx.debug_print();
@@ -506,15 +529,15 @@ mod tests {
     }
 
     fn test_solve(input: &str, solution_answers: &[Sudoku], only_first: bool) {
-        let s_input = parse(input).unwrap();
-        let mut problem = create_problem(&s_input).into_dlx();
+        let sudoku = parse(input).unwrap();
+        let mut problem = sudoku.to_problem().into_dlx();
         let mut solutions = Vec::new();
         if only_first {
             problem.solve_first(|s| solutions.push(s));
         } else {
             problem.solve_all(|s| solutions.push(s));
         }
-        println!("{}", s_input);
+        println!("{}", sudoku);
         for soln in &solutions {
             println!("{}", soln);
             assert!(solution_answers.iter().any(|elt| *elt == *soln),

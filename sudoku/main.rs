@@ -19,20 +19,20 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-use sudoku;
-
 use std::error::Error;
 use std::io;
 use std::io::Read;
+
+use sudoku::Sudoku;
 
 fn try_main() -> Result<(), Box<dyn Error>> {
     let mut input = String::new();
     io::stdin().read_to_string(&mut input)?;
 
-    let sudoku = sudoku::parse(&input)?;
+    let sudoku = Sudoku::parse(&input)?;
     println!("{}", sudoku);
 
-    let mut problem = sudoku::create_problem(&sudoku).into_dlx();
+    let mut problem = sudoku.to_problem().into_dlx();
     let mut solutions = Vec::new();
     problem.solve_all(|s| solutions.push(s));
 
