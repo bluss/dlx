@@ -36,19 +36,6 @@ fn sudoku_size_for_len(len: usize) -> Option<UInt> {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-struct Point {
-    x: UInt,
-    y: UInt,
-    value: Option<UInt>,
-}
-
-impl Point {
-    fn box_of(&self, sudoku_size: u16) -> UInt {
-        box_of(sudoku_size, self.x, self.y)
-    }
-}
-
 #[derive(Clone, Debug)]
 pub enum ParseError {
     InvalidDigit(String),
@@ -144,7 +131,7 @@ fn parse(s: &str) -> Result<Sudoku, ParseError> {
 // R1Cy#1 for all y in the same col
 // RxCy#1 for all x, y in the same box
 
-fn box_of(sudoku_size: u16, x: UInt, y: UInt) -> UInt {
+fn box_of(sudoku_size: UInt, x: UInt, y: UInt) -> UInt {
     // R1C1 => 0
     // ..
     // R1C4 => 1
@@ -234,14 +221,6 @@ fn create_problem(sudoku: &Sudoku) -> SudokuProblem {
     let mut subsets = Vec::new();
     let mut subset_data = Vec::new();
 
-    let sudoku: Vec<_> = sudoku.values.iter().enumerate().map(|(i, &v)| {
-        Point {
-            x: i as UInt / nu,
-            y: i as UInt % nu,
-            value: if v != 0 { Some(v) } else { None },
-        }
-    }).collect();
-
     // create constraints and subsets
     //
     // RxCy: There is exactly 1 number in cell at x, y (N * N)
@@ -253,10 +232,10 @@ fn create_problem(sudoku: &Sudoku) -> SudokuProblem {
     let cat_offset = nu * nu;
     for x in 0..nu {
         for y in 0..nu {
-            let cell = sudoku[(x * nu + y) as usize];
-            let b = cell.box_of(nu as u16);
+            let value = sudoku.values[(x * nu + y) as usize];
+            let b = box_of(nu, x, y);
             for z in 0..nu {
-                if cell.value.is_some() && Some(z + 1) != cell.value {
+                if value != 0 && z + 1 != value {
                     continue;
                 }
                 subset_data.push([x, y, z]);
@@ -303,6 +282,8 @@ impl SudokuProblem {
 /// Suitable for console output with Display.
 #[derive(Clone, PartialEq)]
 pub struct Sudoku {
+    /// values is a row-major array of the sudoku values.
+    /// 0 means placeholder, the other values are 1..=n where n is the sudoku size
     values: Vec<UInt>,
 }
 
