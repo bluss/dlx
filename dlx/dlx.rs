@@ -682,7 +682,8 @@ pub fn algox_config(dlx: &mut Dlx, config: &mut AlgoXConfig, mut out: impl FnMut
 
 macro_rules! stat {
     ($c:ident . $field:ident $($t:tt)*) => {
-        if cfg!(feature = "stats") {
+        #[cfg(feature = "stats")]
+        {
             if let Some(ref mut st) = $c.stats {
                 st . $field $($t)*;
             }

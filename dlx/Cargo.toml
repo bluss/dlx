@@ -12,7 +12,7 @@ path = "dlx.rs"
 [dependencies]
 
 [features]
+default = []
 trace = []
 stats = []
 stats_trace = ["stats"]
-default = ["stats"]
