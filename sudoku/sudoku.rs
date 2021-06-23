@@ -26,17 +26,6 @@ use dlx::UInt;
 use std::error::Error;
 use std::fmt;
 
-#[derive(Clone, Debug)]
-pub struct SudokuInput(Vec<Option<UInt>>);
-
-impl SudokuInput {
-    pub fn to_sudoku(&self) -> Sudoku {
-        Sudoku {
-            values: self.0.iter().map(|x| x.unwrap_or(0)).collect(),
-        }
-    }
-}
-
 fn sudoku_size_for_len(len: usize) -> Option<UInt> {
     match len {
         4 => Some(2),
@@ -44,18 +33,6 @@ fn sudoku_size_for_len(len: usize) -> Option<UInt> {
         81 => Some(9),
         256 => Some(16),
         _ => None,
-    }
-}
-
-impl SudokuInput {
-    fn sudoku_size(&self) -> u16 {
-        match self.0.len() {
-            4 => 2,
-            16 => 4,
-            81 => 9,
-            256 => 16,
-            _ => unimplemented!("doesn't support this sudoku size"),
-        }
     }
 }
 
@@ -72,14 +49,19 @@ impl Point {
     }
 }
 
-#[derive(Debug)]
-pub struct ParseError(String);
+#[derive(Clone, Debug)]
+pub enum ParseError {
+    InvalidDigit(String),
+    InvalidSize(String),
+}
 
 impl Error for ParseError { }
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.0.fmt(f)
+        match self {
+            Self::InvalidSize(s) | Self::InvalidDigit(s) => s.fmt(f)
+        }
     }
 }
 
@@ -98,18 +80,27 @@ fn is_spacer(s: &str) -> bool {
     }
 }
 
-pub fn parse(s: &str) -> Result<SudokuInput, ParseError> {
-    let parts: Vec<Option<UInt>> = s.split(char::is_whitespace)
+pub fn parse(s: &str) -> Result<Sudoku, ParseError> {
+    let parts = s.split(char::is_whitespace)
         .filter(|s| !is_spacer(*s) && (s.len() <= 1 || !s.split("").all(is_spacer)))
-        .map(|s| if is_blank(s) { Ok(None) } else { Some(s.parse::<UInt>()).transpose() })
-        .collect::<Result<Vec<Option<UInt>>, _>>()
-        .map_err(|e| ParseError(e.to_string()))?;
+        .map(|s| if is_blank(s) { (s, Ok(None)) } else { (s, Some(s.parse::<UInt>()).transpose()) })
+        .map(|(input, res)| res.map_err(move |e| ParseError::InvalidDigit(format!("Error: {}: '{}'", e, input))))
+        .map(|res| res.map(|elt| elt.unwrap_or(0)))
+        .collect::<Result<Vec<_>, _>>()?;
 
-    if parts.len() != 16 && parts.len() != 81 {
-        return Err(ParseError(format!("Unsupported size: got {} elements: {:?}", parts.len(), parts)));
+    if let Some(sz) = sudoku_size_for_len(parts.len()) {
+        for &part in &parts {
+            if part > sz {
+                return Err(ParseError::InvalidDigit(format!("Digit '{}' too large for sudoku size {}", part, sz)));
+            }
+        }
+    } else {
+        let len = parts.len();
+        let msg = format!("Unsupported size: got {} elements: {:?} [..]", len, &parts[..Ord::min(32, len)]);
+        return Err(ParseError::InvalidSize(msg));
     }
 
-    Ok(SudokuInput(parts))
+    Ok(Sudoku { values: parts })
 }
 
 // make constraints
@@ -237,17 +228,16 @@ impl SudokuProblemDlx {
     }
 }
 
-pub fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
-    let n = sudoku.sudoku_size() as usize;
-    let nu = sudoku.sudoku_size() as UInt;
+pub fn create_problem(sudoku: &Sudoku) -> SudokuProblem {
+    let nu = sudoku.sudoku_size();
     let mut subsets = Vec::new();
     let mut subset_data = Vec::new();
 
-    let sudoku: Vec<_> = sudoku.0.iter().enumerate().map(|(i, &v)| {
+    let sudoku: Vec<_> = sudoku.values.iter().enumerate().map(|(i, &v)| {
         Point {
             x: i as UInt / nu,
             y: i as UInt % nu,
-            value: v,
+            value: if v != 0 { Some(v) } else { None },
         }
     }).collect();
 
@@ -263,7 +253,7 @@ pub fn create_problem(sudoku: &SudokuInput) -> SudokuProblem {
     for x in 0..nu {
         for y in 0..nu {
             let cell = sudoku[(x * nu + y) as usize];
-            let b = cell.box_of(n as u16);
+            let b = cell.box_of(nu as u16);
             for z in 0..nu {
                 if cell.value.is_some() && Some(z + 1) != cell.value {
                     continue;
@@ -307,21 +297,36 @@ impl SudokuProblem {
 }
 
 /// Displayable version of Sudoku. Can be solved or contain placeholders (as zero).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Sudoku {
     values: Vec<UInt>,
 }
 
 impl Sudoku {
+    pub fn is_solved(&self) -> bool {
+        self.values.iter().all(|elt| *elt != 0)
+    }
+
+    fn sudoku_size(&self) -> UInt {
+        sudoku_size_for_len(self.values.len())
+            .unwrap_or_else(|| unimplemented!("doesn't support this sudoku size"))
+    }
+
     /// Get the values (row major order)
     pub fn values(&self) -> &[UInt] {
         &self.values
     }
 }
 
+impl fmt::Debug for Sudoku {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
 impl fmt::Display for Sudoku {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let nu = sudoku_size_for_len(self.values.len()).unwrap();
+        let nu = self.sudoku_size();
         let empty_str = ".";
 
         for x in 0..nu {
@@ -353,11 +358,23 @@ mod tests {
         4 . ; 1 2
         3 . ; . 4
         ").unwrap();
-        assert_eq!(v.0,
-            vec![Some(1), None, Some(2), Some(3),
-                 Some(2), None, None, None,
-                 Some(4), None, Some(1), Some(2),
-                 Some(3), None, None, Some(4)]);
+        assert_eq!(v.values(),
+            [1, 0, 2, 3,
+             2, 0, 0, 0,
+             4, 0, 1, 2,
+             3, 0, 0, 4]);
+    }
+
+    #[test]
+    fn test_parse_error() {
+        let input1 = "1 . ; 2 5 ; 2 . ; . . ; 4 . ; 1 2 ; 3 . ; . 4 ;";
+        let input2 = "1 . ; 2 x ; 2 . ; . . ; 4 . ; 1 2 ; 3 . ; . 4 ;";
+        let input3 = "1 . ; 2 . ; 2 . ; . . ; 4 . ; 1 2 ; 3 . ; . ;";
+        let input4 = "1 . ; 2 . ; 2 . ; . . ; 4 . ; 1 2 ; 3 . ; . 4 4 ;";
+        assert!(matches!(dbg!(parse(input1)), Err(ParseError::InvalidDigit(_))));
+        assert!(matches!(dbg!(parse(input2)), Err(ParseError::InvalidDigit(_))));
+        assert!(matches!(dbg!(parse(input3)), Err(ParseError::InvalidSize(_))));
+        assert!(matches!(dbg!(parse(input4)), Err(ParseError::InvalidSize(_))));
     }
 
     #[test]
@@ -409,7 +426,7 @@ mod tests {
         println!("{:?}", solution);
         assert!(solution.is_some());
         if let Some(s) = &mut solution {
-            println!("{}", v.to_sudoku());
+            println!("{}", v);
             println!("{}", p.to_sudoku(&*s));
             let sol = p.to_sudoku(&*s);
             assert_eq!(sol.values[..],
@@ -423,12 +440,12 @@ mod tests {
     macro_rules! test_solve {
         (all $input:expr, $($answer:expr),*) => {
             {
-                test_solve($input, &[ $( parse($answer).unwrap().to_sudoku() ),* ], false);
+                test_solve($input, &[ $( parse($answer).unwrap() ),* ], false);
             }
         };
         (one $input:expr, $answer:expr) => {
             {
-                test_solve($input, &[ parse($answer).unwrap().to_sudoku() ], true);
+                test_solve($input, &[ parse($answer).unwrap() ], true);
             }
         }
     }
@@ -450,7 +467,7 @@ mod tests {
         algox(&mut p.dlx, |s| solutions.push(s.get()));
         println!("{:?}", solutions);
         assert_eq!(solutions.len(), 2);
-        println!("{}", v.to_sudoku());
+        println!("{}", v);
         for s in &solutions {
             println!("{}", p.to_sudoku(&*s));
         }
@@ -497,7 +514,7 @@ mod tests {
         } else {
             problem.solve_all(|s| solutions.push(s));
         }
-        println!("{}", s_input.to_sudoku());
+        println!("{}", s_input);
         for soln in &solutions {
             println!("{}", soln);
             assert!(solution_answers.iter().any(|elt| *elt == *soln),
