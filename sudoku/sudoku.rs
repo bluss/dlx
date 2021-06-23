@@ -187,7 +187,7 @@ impl SudokuProblemDlx {
 
     /// Get additional info for the Dlx rows: triplets of [Rx, Cy, #z]
     /// which correspond to row x, column y being filled with number z
-    pub fn dlx_row_info(&self) -> &Dlx { &self.dlx }
+    pub fn dlx_row_info(&self) -> &[[UInt; 3]] { &self.subset_data }
 
     /// Given a Dlx solution, convert into a solved Sudoku
     pub fn to_sudoku(&self, solution: &[UInt]) -> Sudoku {
