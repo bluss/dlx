@@ -668,7 +668,7 @@ pub fn algox(dlx: &mut Dlx, out: impl FnMut(AlgoXSolution<'_>)) {
 /// it was on entry.
 pub fn algox_config(dlx: &mut Dlx, config: &mut AlgoXConfig, mut out: impl FnMut(AlgoXSolution<'_>)) {
     trace!("Algorithm X start");
-    if_trace!(dlx.debug_print(true));
+    if_trace!(dlx.debug_print());
     if cfg!(feature = "stats_trace") && config.stats.is_none() {
         config.stats = Some(AlgoXStats::default());
     }
